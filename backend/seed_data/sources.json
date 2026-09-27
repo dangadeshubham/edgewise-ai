@@ -1,0 +1,32 @@
+[
+  {
+    "id": "s1000001-0000-4000-8000-000000000001",
+    "name": "OEM Technical Manuals",
+    "source_type": "manual",
+    "description": "Manufacturer operational specifications, wiring diagrams, and overhaul manuals"
+  },
+  {
+    "id": "s1000002-0000-4000-8000-000000000002",
+    "name": "Plant Incident Logs",
+    "source_type": "incident",
+    "description": "Unscheduled trip reports, failure diagnoses, and safety root-cause analyses"
+  },
+  {
+    "id": "s1000003-0000-4000-8000-000000000003",
+    "name": "Preventative Maintenance SOPs",
+    "source_type": "maintenance",
+    "description": "Standard operating procedures, lubrication schedules, and vibration thresholds"
+  },
+  {
+    "id": "s1000004-0000-4000-8000-000000000004",
+    "name": "Technician Shift Logs",
+    "source_type": "note",
+    "description": "Handover observations, sensory notes, and component replacement history"
+  },
+  {
+    "id": "s1000005-0000-4000-8000-000000000005",
+    "name": "Plant Equipment Registry",
+    "source_type": "equipment",
+    "description": "Asset metadata, operating envelopes, serial numbers, and maintenance histories"
+  }
+]

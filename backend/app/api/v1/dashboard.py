@@ -1,17 +1,87 @@
-"""Dashboard API — Aggregated system metrics."""
+"""
+EDGEWISE AI — Dashboard API
+
+Live aggregated system metrics computed directly from real persisted application state.
+No simulated success or hardcoded metrics.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.database import get_db
+from app.repositories.document import DocumentRepository
+from app.repositories.memory import MemoryRecordRepository
+from app.repositories.sync import ConflictRepository, SyncRepository
 from app.schemas.api import DashboardMetrics
+from app.services.connectivity.service import ConnectivityService
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.get("/metrics", response_model=DashboardMetrics)
-async def get_dashboard_metrics(db: AsyncSession = Depends(get_db)):
-    """Get live aggregated dashboard metrics from real system state."""
-    raise HTTPException(status_code=501, detail="Not yet implemented")
+async def get_dashboard_metrics(
+    db: AsyncSession = Depends(get_db),
+) -> DashboardMetrics:
+    """Get live aggregated dashboard metrics computed strictly from persisted state."""
+    # 1. Real connectivity state
+    conn_service = ConnectivityService()
+    conn_status = await conn_service.get_connectivity_status()
+
+    # 2. Database repositories
+    doc_repo = DocumentRepository(db)
+    memory_repo = MemoryRecordRepository(db)
+    sync_repo = SyncRepository(db)
+    conflict_repo = ConflictRepository(db)
+
+    # 3. Query actual database counts
+    total_docs = await doc_repo.count_active()
+    processed_docs = await doc_repo.count_by_status("completed")
+    failed_docs = await doc_repo.count_by_status("failed")
+    storage_bytes = await doc_repo.get_storage_bytes()
+
+    memory_count = await memory_repo.count_active()
+
+    # Query embedded chunks from persisted DB records
+    from sqlalchemy import func, select
+    from app.models.database import DocumentChunk
+    vector_res = await db.execute(
+        select(func.count(DocumentChunk.id)).where(DocumentChunk.is_embedded.is_(True))
+    )
+    local_vectors = vector_res.scalar() or 0
+
+    # Query synced cloud records from persisted DB state
+    from app.models.database import MemoryRecord
+    cloud_res = await db.execute(
+        select(func.count(MemoryRecord.id)).where(
+            MemoryRecord.sync_status == "synced",
+            MemoryRecord.deleted_at.is_(None),
+        )
+    )
+    cloud_records = cloud_res.scalar() or 0
+
+    pending_sync = await sync_repo.count_by_status("pending")
+    failed_sync = await sync_repo.count_by_status("failed")
+    last_sync = await sync_repo.get_last_successful_sync_time()
+    open_conflicts = await conflict_repo.count_open()
+
+    return DashboardMetrics(
+        connectivity_state=conn_status.state,
+        local_memory_records=memory_count,
+        local_vector_count=local_vectors,
+        cloud_record_count=cloud_records,
+        pending_sync=pending_sync,
+        failed_sync=failed_sync,
+        open_conflicts=open_conflicts,
+        last_successful_sync=last_sync,
+        current_device_id=settings.device_id,
+        current_device_name=settings.device_name,
+        current_device_site=settings.device_site,
+        total_documents=total_docs,
+        processed_documents=processed_docs,
+        failed_documents=failed_docs,
+        storage_usage_bytes=storage_bytes,
+    )

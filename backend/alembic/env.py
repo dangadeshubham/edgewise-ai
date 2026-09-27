@@ -12,11 +12,26 @@ from sqlalchemy import engine_from_config, pool
 # Add backend to path so we can import our models
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.core.config import get_settings
 from app.models.database import Base
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+custom_url = config.get_main_option("sqlalchemy.url")
+if not custom_url or custom_url == "sqlite:///./data/sqlite/edgewise.db":
+    settings = get_settings()
+    sync_url = settings.sqlite_database_url.replace("sqlite+aiosqlite:///", "sqlite:///")
+    config.set_main_option("sqlalchemy.url", sync_url)
+    target_url = sync_url
+else:
+    target_url = custom_url
+
+# Ensure database directory exists
+db_file_str = target_url.replace("sqlite:///", "")
+if db_file_str and not db_file_str.startswith(":memory:"):
+    Path(db_file_str).parent.mkdir(parents=True, exist_ok=True)
 
 target_metadata = Base.metadata
 

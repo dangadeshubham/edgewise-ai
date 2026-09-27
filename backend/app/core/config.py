@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     device_id: str = "edge-device-001"
     device_name: str = "Site-A Field Terminal"
     device_site: str = "site-alpha"
+    auto_register_local_device: bool = False
 
     # --- Backend Server ---
     backend_host: str = "0.0.0.0"

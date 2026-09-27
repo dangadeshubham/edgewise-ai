@@ -57,7 +57,7 @@ class ConnectivityService:
     async def _check_internet(self) -> bool:
         """Check basic internet connectivity."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=2.0) as client:
                 resp = await client.get("https://httpbin.org/status/200")
                 return resp.status_code == 200
         except Exception:
@@ -66,7 +66,7 @@ class ConnectivityService:
     async def _check_qdrant_cloud(self) -> bool:
         """Check if Qdrant Server/Cloud is reachable."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=2.0) as client:
                 headers = {}
                 if settings.qdrant_api_key:
                     headers["api-key"] = settings.qdrant_api_key
@@ -81,7 +81,7 @@ class ConnectivityService:
     async def _check_ollama(self) -> bool:
         """Check if Ollama is reachable."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=2.0) as client:
                 resp = await client.get(f"{settings.ollama_base_url}/api/tags")
                 return resp.status_code == 200
         except Exception:

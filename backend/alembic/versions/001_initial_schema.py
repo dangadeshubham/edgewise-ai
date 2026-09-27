@@ -88,8 +88,8 @@ def upgrade() -> None:
         sa.Column("change_summary", sa.Text, nullable=True),
         sa.Column("created_by_device", sa.String(64), nullable=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.UniqueConstraint("document_id", "version", name="uq_doc_version"),
     )
-    op.create_unique_constraint("uq_doc_version", "document_versions", ["document_id", "version"])
 
     # --- document_chunks ---
     op.create_table(
@@ -104,10 +104,10 @@ def upgrade() -> None:
         sa.Column("is_embedded", sa.Boolean, server_default="0"),
         sa.Column("metadata_json", sa.Text, nullable=True),
         sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.UniqueConstraint("document_id", "chunk_index", name="uq_chunk_index"),
     )
     op.create_index("ix_chunks_document_id", "document_chunks", ["document_id"])
     op.create_index("ix_chunks_content_hash", "document_chunks", ["content_hash"])
-    op.create_unique_constraint("uq_chunk_index", "document_chunks", ["document_id", "chunk_index"])
 
     # --- memory_records ---
     op.create_table(
@@ -250,8 +250,8 @@ def upgrade() -> None:
         sa.Column("total_embeddings_generated", sa.Integer, server_default="0"),
         sa.Column("created_at", sa.DateTime, nullable=False),
         sa.Column("last_used_at", sa.DateTime, nullable=False),
+        sa.UniqueConstraint("model_name", name="uq_embedding_model"),
     )
-    op.create_unique_constraint("uq_embedding_model", "embedding_metadata", ["model_name"])
 
 
 def downgrade() -> None:

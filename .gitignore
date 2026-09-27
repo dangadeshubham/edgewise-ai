@@ -33,8 +33,12 @@ frontend/.vite/
 .DS_Store
 
 # Qdrant Edge runtime storage
-data/qdrant_edge/
-data/sqlite/
+data/
+backend/data/
+**/data/sqlite/
+**/data/qdrant_edge/
+**/data/uploads/
+**/data/processed/
 *.db
 *.db-journal
 *.db-wal

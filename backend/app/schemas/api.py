@@ -349,6 +349,26 @@ class ConflictListResponse(PaginatedResponse):
 # Devices
 # =============================================================================
 
+class DeviceCreate(BaseModel):
+    id: Optional[str] = Field(None, description="Device UUID. Automatically generated if omitted.")
+    name: str = Field(..., min_length=1, max_length=255, description="Device display name")
+    site: str = Field(..., min_length=1, max_length=255, description="Site location")
+    status: str = Field("active", pattern="^(active|inactive|offline|degraded)$")
+    software_version: Optional[str] = Field(None, max_length=64)
+
+    @field_validator("id")
+    @classmethod
+    def validate_uuid(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            import uuid
+            try:
+                parsed = uuid.UUID(v)
+                return str(parsed)
+            except (ValueError, AttributeError):
+                raise ValueError("id must be a valid UUID string")
+        return v
+
+
 class DeviceResponse(BaseModel):
     id: str
     name: str
@@ -357,8 +377,9 @@ class DeviceResponse(BaseModel):
     software_version: Optional[str] = None
     last_seen: Optional[datetime] = None
     last_sync: Optional[datetime] = None
-    pending_changes: int
+    pending_changes: int = 0
     created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 

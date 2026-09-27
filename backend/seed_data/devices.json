@@ -1,0 +1,23 @@
+[
+  {
+    "id": "e1a10001-0000-4000-8000-000000000001",
+    "name": "Site-A Field Terminal",
+    "site": "site-alpha",
+    "status": "active",
+    "software_version": "0.1.0"
+  },
+  {
+    "id": "e1a10002-0000-4000-8000-000000000002",
+    "name": "Pump House Station 4",
+    "site": "site-alpha",
+    "status": "active",
+    "software_version": "0.1.0"
+  },
+  {
+    "id": "e1a10003-0000-4000-8000-000000000003",
+    "name": "Offshore Rig Unit 7",
+    "site": "site-bravo",
+    "status": "active",
+    "software_version": "0.1.0"
+  }
+]

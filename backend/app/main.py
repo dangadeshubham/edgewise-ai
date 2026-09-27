@@ -2,11 +2,12 @@
 EDGEWISE AI — FastAPI Application Entry Point
 
 Assembles the application with:
-- CORS middleware
-- API routers
-- Health endpoints
-- Lifespan events (startup/shutdown)
-- Request ID middleware
+- Structured logging with structlog
+- Request ID tracing middleware
+- Consistent error handling (no leaked secrets or tracebacks)
+- Environment-driven configuration
+- Real health and observability endpoints
+- Lifespan events
 """
 
 from __future__ import annotations
@@ -16,11 +17,13 @@ import uuid
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.core.database import close_db, init_db
+from app.core.database import close_db
 from app.core.logging import setup_logging
 
 settings = get_settings()
@@ -37,14 +40,38 @@ async def lifespan(app: FastAPI):
 
     log = structlog.get_logger("edgewise.startup")
 
-    # Setup logging
+    # Setup structured logging
     setup_logging(settings.backend_log_level)
 
-    # Ensure data directories exist
+    # Ensure required data directories exist
     settings.ensure_directories()
 
-    # Initialize database tables
-    await init_db()
+    # Register local development device ONLY if explicitly configured
+    if settings.auto_register_local_device:
+        from app.core.database import async_session_factory
+        from app.schemas.api import DeviceCreate
+        from app.services.device.service import DeviceService
+        async with async_session_factory() as session:
+            service = DeviceService(session)
+            dev_id = settings.device_id
+            try:
+                uuid.UUID(dev_id)
+            except ValueError:
+                dev_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, settings.device_id))
+            try:
+                await service.get_device(dev_id)
+            except HTTPException:
+                await service.register_device(
+                    DeviceCreate(
+                        id=dev_id,
+                        name=settings.device_name,
+                        site=settings.device_site,
+                        status="active",
+                        software_version=APP_VERSION,
+                    )
+                )
+                await session.commit()
+                await log.ainfo("local_device_registered", device_id=dev_id)
 
     await log.ainfo(
         "edgewise_started",
@@ -54,7 +81,7 @@ async def lifespan(app: FastAPI):
         version=APP_VERSION,
     )
 
-    yield  # Application runs
+    yield  # Application running
 
     # Shutdown
     await close_db()
@@ -84,7 +111,7 @@ app.add_middleware(
 @app.middleware("http")
 async def add_request_id(request: Request, call_next) -> Response:
     """Attach a unique request ID to every request for tracing."""
-    request_id = str(uuid.uuid4())[:8]
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(request_id=request_id)
 
@@ -98,9 +125,64 @@ async def add_request_id(request: Request, call_next) -> Response:
     return response
 
 
+# --- Exception Handlers ---
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Standardized validation error response without leaking internals."""
+    request_id = structlog.contextvars.get_contextvars().get("request_id")
+    errors = exc.errors()
+    formatted = [
+        f"{'.'.join(str(loc) for loc in err.get('loc', []))}: {err.get('msg')}"
+        for err in errors
+    ]
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "validation_error",
+            "detail": "; ".join(formatted),
+            "request_id": request_id,
+        },
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(
+    request: Request, exc: HTTPException
+) -> JSONResponse:
+    """Standardized HTTP exception response."""
+    request_id = structlog.contextvars.get_contextvars().get("request_id")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": f"http_{exc.status_code}",
+            "detail": exc.detail,
+            "request_id": request_id,
+        },
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all unhandled error handler. Never exposes raw stack traces or secrets."""
+    request_id = structlog.contextvars.get_contextvars().get("request_id")
+    log = structlog.get_logger("edgewise.error")
+    await log.aerror("unhandled_exception", error=str(exc), exc_info=True, request_id=request_id)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "internal_server_error",
+            "detail": "An unexpected internal server error occurred.",
+            "request_id": request_id,
+        },
+    )
+
+
 # --- Mount Routers ---
-from app.api.v1.health import router as health_router
 from app.api.router import api_router
+from app.api.v1.health import router as health_router
 
 app.include_router(health_router)
 app.include_router(api_router)
