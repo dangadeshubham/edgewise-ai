@@ -117,11 +117,18 @@ class Settings(BaseSettings):
 
     # --- Ollama ---
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2:3b"
+    ollama_model: str = "llama3:latest"
     ollama_timeout: int = 120
 
     # --- Embedding ---
     embedding_model_name: str = "all-MiniLM-L6-v2"
+
+    # --- RAG Retrieval Policy ---
+    rag_top_k: int = Field(default=10, validation_alias="RAG_TOP_K")
+    rag_min_retrieval_score: float = Field(default=0.25, validation_alias="RAG_MIN_RETRIEVAL_SCORE")
+    rag_max_context_chunks: int = Field(default=8, validation_alias="RAG_MAX_CONTEXT_CHUNKS")
+    rag_max_context_characters: int = Field(default=6000, validation_alias="RAG_MAX_CONTEXT_CHARACTERS")
+    rag_insufficient_evidence_threshold: int = Field(default=0, validation_alias="RAG_INSUFFICIENT_EVIDENCE_THRESHOLD")
 
     # --- Document Ingestion ---
     max_upload_size_mb: int = 50

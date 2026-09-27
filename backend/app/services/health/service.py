@@ -176,24 +176,42 @@ class HealthService:
             )
 
     async def _check_ollama(self) -> ComponentHealth:
-        """Actually check Ollama API endpoint."""
+        """Actually check Ollama API endpoint AND configured model availability."""
         start = time.perf_counter()
         try:
             async with httpx.AsyncClient(timeout=self.http_timeout) as client:
                 resp = await client.get(f"{settings.ollama_base_url}/api/tags")
                 latency = (time.perf_counter() - start) * 1000
-                if resp.status_code == 200:
+                if resp.status_code != 200:
                     return ComponentHealth(
                         name="ollama",
-                        status="healthy",
+                        status="unhealthy",
                         latency_ms=round(latency, 2),
-                        message="Ollama responding",
+                        message=f"Ollama returned HTTP {resp.status_code}",
                     )
+
+                # Check model availability
+                data = resp.json()
+                available_models = [m["name"] for m in data.get("models", [])]
+                model_found = any(
+                    m == settings.ollama_model
+                    or m.startswith(settings.ollama_model.split(":")[0] + ":")
+                    for m in available_models
+                )
+
+                if not model_found:
+                    return ComponentHealth(
+                        name="ollama",
+                        status="degraded",
+                        latency_ms=round(latency, 2),
+                        message=f"OLLAMA_AVAILABLE but OLLAMA_MODEL_UNAVAILABLE: '{settings.ollama_model}' not in {available_models}",
+                    )
+
                 return ComponentHealth(
                     name="ollama",
-                    status="unhealthy",
+                    status="healthy",
                     latency_ms=round(latency, 2),
-                    message=f"Ollama returned HTTP {resp.status_code}",
+                    message=f"OLLAMA_AVAILABLE, OLLAMA_MODEL_AVAILABLE: {settings.ollama_model}",
                 )
         except Exception:
             latency = (time.perf_counter() - start) * 1000
@@ -201,7 +219,7 @@ class HealthService:
                 name="ollama",
                 status="unhealthy",
                 latency_ms=round(latency, 2),
-                message="Ollama unavailable: connection failed",
+                message="OLLAMA_UNAVAILABLE: connection failed",
             )
 
     async def _check_edge_shard(self) -> ComponentHealth:

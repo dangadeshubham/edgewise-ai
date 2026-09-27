@@ -195,22 +195,36 @@ class CopilotQueryRequest(BaseModel):
 class SourceCitation(BaseModel):
     document_id: Optional[str] = None
     document_title: Optional[str] = None
+    chunk_id: Optional[str] = None
+    filename: Optional[str] = None
     source_name: Optional[str] = None
     content_preview: str
     relevance_score: float
     chunk_index: Optional[int] = None
+    page_start: Optional[int] = None
+    page_end: Optional[int] = None
+
+
+class EvidenceInfo(BaseModel):
+    """Real evidence metrics — no fake confidence percentages."""
+    chunk_count: int
+    source_count: int
+    top_retrieval_score: float
+    retrieval_threshold_applied: Optional[float] = None
 
 
 class CopilotQueryResponse(BaseModel):
     conversation_id: str
     answer: str
     sources: list[SourceCitation]
-    source_count: int
+    evidence: EvidenceInfo
     retrieval_latency_ms: float
     generation_latency_ms: float
     total_latency_ms: float
+    embedding_latency_ms: float
     offline_mode: bool
     model_used: Optional[str] = None
+    insufficient_evidence: bool = False
 
 
 # =============================================================================

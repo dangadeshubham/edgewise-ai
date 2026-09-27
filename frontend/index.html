@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDGEWISE AI — Edge Copilot</title>
+  <meta name="description" content="Local Grounded RAG Copilot for Industrial Edge Intelligence">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Header / Navbar -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-badge">
+          <span class="logo-icon">⚡</span>
+          <span class="logo-title">EDGEWISE<span class="accent">.AI</span></span>
+        </div>
+        <span class="badge-phase">PHASE 4: LOCAL RAG</span>
+      </div>
+      <div class="header-right">
+        <div id="connectivity-badge" class="status-indicator online">
+          <span class="dot"></span>
+          <span id="connectivity-label">OFFLINE-FIRST (ACTIVE)</span>
+        </div>
+        <div id="ollama-badge" class="status-indicator ollama-ready">
+          <span class="dot"></span>
+          <span id="ollama-label">OLLAMA READY</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+      <!-- Hero / Context Banner -->
+      <section class="copilot-intro">
+        <h1 class="headline">Industrial Knowledge Copilot</h1>
+        <p class="subheadline">
+          Strictly grounded retrieval over local Qdrant Edge memory. Answers are generated exclusively from local evidence with verifiable citations.
+        </p>
+      </section>
+
+      <!-- Suggested Questions -->
+      <div class="prompt-chips">
+        <span class="chip-label">Try asking:</span>
+        <button class="chip" data-query="Why might the pump overheat?">Why might the pump overheat?</button>
+        <button class="chip" data-query="How should the pump be shut down in an overheating event?">How to shut down during overheating?</button>
+        <button class="chip" data-query="What is the bearing inspection procedure?">Bearing inspection procedure</button>
+        <button class="chip negative" data-query="What is the capital of France?">Capital of France (Negative test)</button>
+      </div>
+
+      <!-- Query Form -->
+      <form id="copilot-form" class="query-box">
+        <div class="input-wrapper">
+          <textarea
+            id="query-input"
+            rows="2"
+            placeholder="Ask a technical or maintenance question about local documents..."
+            required
+          ></textarea>
+          <button type="submit" id="submit-btn" class="btn-primary">
+            <span class="btn-text">Search & Answer</span>
+            <span class="btn-icon">↵</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="state-card loading-card hidden">
+        <div class="spinner"></div>
+        <div class="loading-info">
+          <div class="loading-title">Retrieving local evidence & running Ollama...</div>
+          <div class="loading-desc">Executing dense vector search on Qdrant Edge Shards and applying grounded generation rules.</div>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="error-state" class="state-card error-card hidden">
+        <div class="error-icon">⚠️</div>
+        <div class="error-body">
+          <h3 id="error-title">Dependency Error</h3>
+          <p id="error-message">Unable to query local copilot.</p>
+        </div>
+      </div>
+
+      <!-- Results Area -->
+      <div id="results-area" class="results-area hidden">
+        <!-- Insufficient Evidence Notice -->
+        <div id="insufficient-evidence-banner" class="insufficient-evidence-banner hidden">
+          <div class="banner-icon">🛡️</div>
+          <div class="banner-body">
+            <strong>Insufficient Local Evidence:</strong>
+            <span>No documents in the local knowledge base passed the minimum retrieval threshold. The LLM was not called to prevent hallucinations.</span>
+          </div>
+        </div>
+
+        <!-- Answer Card -->
+        <article class="answer-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <span class="badge-role">COPILOT ANSWER</span>
+              <span id="model-badge" class="badge-meta">model: llama3.2:1b</span>
+            </div>
+            <div id="metrics-bar" class="metrics-bar">
+              <span class="metric" title="Total response latency">Total: <strong id="metric-total">--</strong></span>
+              <span class="metric" title="Embedding generation latency">Embed: <strong id="metric-embed">--</strong></span>
+              <span class="metric" title="Qdrant Edge retrieval latency">Retrieval: <strong id="metric-retrieval">--</strong></span>
+              <span class="metric" title="Ollama LLM generation latency">LLM: <strong id="metric-llm">--</strong></span>
+            </div>
+          </div>
+          <div id="answer-content" class="answer-text">
+            <!-- Answer filled dynamically -->
+          </div>
+        </article>
+
+        <!-- Sources & Citations Section -->
+        <section class="sources-section">
+          <div class="sources-header">
+            <h3>Verified Local Sources & Citations (<span id="source-count">0</span>)</h3>
+            <span class="sources-subtitle">Directly mapped from SQLite document chunks and Qdrant Edge points</span>
+          </div>
+          <div id="sources-grid" class="sources-grid">
+            <!-- Source cards injected here -->
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Document Metadata Modal -->
+    <div id="doc-modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modal-doc-title">Document Metadata</h3>
+          <button id="modal-close-btn" class="modal-close">×</button>
+        </div>
+        <div id="modal-body" class="modal-body">
+          <pre id="modal-json"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span>EDGEWISE AI Edge Node • Local Storage (SQLite + Qdrant Edge) • Local LLM (Ollama)</span>
+      <span class="privacy-note">Zero cloud dependencies required for local intelligence.</span>
+    </footer>
+  </div>
+
+  <script src="copilot.js"></script>
+</body>
+</html>

@@ -188,6 +188,14 @@ app.include_router(health_router)
 app.include_router(api_router)
 
 
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+
+frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
+if frontend_dir.exists():
+    app.mount("/copilot", StaticFiles(directory=str(frontend_dir), html=True), name="copilot")
+
+
 @app.get("/", tags=["Root"])
 async def root():
     """Root endpoint with application info."""
@@ -197,4 +205,6 @@ async def root():
         "version": APP_VERSION,
         "device_id": settings.device_id,
         "docs": "/docs",
+        "copilot_ui": "/copilot/",
     }
+
