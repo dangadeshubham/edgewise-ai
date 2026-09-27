@@ -52,6 +52,7 @@ class ProcessingStatus(str, Enum):
     INDEXING = "indexing"
     COMPLETED = "completed"
     FAILED = "failed"
+    DUPLICATE = "duplicate"
 
 
 class ConflictStatus(str, Enum):

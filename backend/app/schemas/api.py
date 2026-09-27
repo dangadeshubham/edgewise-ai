@@ -96,6 +96,8 @@ class DocumentUploadResponse(BaseModel):
     content_hash: str
     processing_status: str
     message: str
+    is_duplicate: bool = False
+    version: int = 1
 
 
 class DocumentResponse(BaseModel):

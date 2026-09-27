@@ -1,0 +1,24 @@
+CENTRIFUGAL PUMP CP-400 TECHNICAL OPERATION MANUAL
+Model: CP-400 High Pressure Horizontal Split-Case Pump
+Manufacturer: FlowServe Industrial Systems
+Revision: 3.2 | Date: 2026-01-15
+
+1. SYSTEM SPECIFICATIONS
+- Design Flow Rate: 450 m3/h at 2950 RPM
+- Total Dynamic Head: 92 meters (8.9 bar differential)
+- Impeller Diameter: 315 mm (Double-suction bronze alloy)
+- Motor Rating: 55 kW, 400V, 3-phase, 50 Hz, TEFC enclosure
+- Mechanical Seal: Plan 11 flush arrangement with carbon vs. silicon carbide faces
+- Bearing Arrangement: Deep groove ball bearings (DE: 6312-C3, NDE: 7312-BEP paired)
+
+2. LUBRICATION AND OPERATING LIMITS
+- Lubricant: ISO VG 46 synthetic turbine oil
+- Oil Sump Capacity: 1.4 Liters
+- Maximum Continuous Operating Temperature: 82 deg C (alarm at 85 deg C, trip at 90 deg C)
+- Maximum Allowable Vibration Velocity: 2.8 mm/s RMS (ISO 10816-3 Category Class II)
+
+3. COMMISSIONING PROCEDURES
+a. Ensure suction valve is fully open and discharge valve is throttled to 10%.
+b. Vent all entrapped air from casing bleed valve until steady liquid stream appears.
+c. Verify rotation direction clockwise viewed from coupling end.
+d. Start motor and gradually open discharge valve within 30 seconds to avoid cavitation.

@@ -1,0 +1,44 @@
+{
+  "plant_site": "site-alpha",
+  "last_audit_date": "2026-02-01",
+  "assets": [
+    {
+      "tag": "PUMP-CP-400A",
+      "type": "Centrifugal Pump",
+      "location": "Pump Room 1",
+      "criticality": "Critical",
+      "operating_envelope": {
+        "rated_flow_m3h": 450,
+        "rated_head_m": 92,
+        "max_temp_c": 85,
+        "max_vibration_mms": 2.8
+      },
+      "last_overhaul": "2025-11-10"
+    },
+    {
+      "tag": "COMP-C102",
+      "type": "Reciprocating Compressor",
+      "location": "Compressor House B",
+      "criticality": "High",
+      "operating_envelope": {
+        "stages": 3,
+        "discharge_pressure_bar": 42.5,
+        "max_temp_c": 90,
+        "max_vibration_mms": 3.5
+      },
+      "last_overhaul": "2026-03-15"
+    },
+    {
+      "tag": "TURB-T800",
+      "type": "Industrial Gas Turbine",
+      "location": "Turbine Enclosure 3",
+      "criticality": "Critical",
+      "operating_envelope": {
+        "power_output_mw": 12.5,
+        "exhaust_gas_temp_c": 510,
+        "rotor_speed_rpm": 11200
+      },
+      "last_overhaul": "2025-08-20"
+    }
+  ]
+}
