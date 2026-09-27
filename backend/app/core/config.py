@@ -90,10 +90,25 @@ class Settings(BaseSettings):
     sqlite_database_url: str = "sqlite+aiosqlite:///./data/sqlite/edgewise.db"
 
     # --- Qdrant Edge ---
-    edge_mutable_shard_path: str = "./data/qdrant_edge/mutable"
-    edge_immutable_shard_path: str = "./data/qdrant_edge/immutable"
+    edge_data_dir: str = Field(default="./data/qdrant_edge", validation_alias="EDGE_DATA_DIR")
+    edge_mutable_dir: str = Field(default="./data/qdrant_edge/mutable", validation_alias="EDGE_MUTABLE_DIR")
+    edge_immutable_dir: str = Field(default="./data/qdrant_edge/immutable", validation_alias="EDGE_IMMUTABLE_DIR")
+    edge_collection_name: str = Field(default="edgewise-knowledge", validation_alias="EDGE_COLLECTION_NAME")
+    edge_vector_dimension: int = Field(default=384, validation_alias="EDGE_VECTOR_DIMENSION")
+    edge_distance: str = Field(default="Cosine", validation_alias="EDGE_DISTANCE")
+    edge_batch_size: int = Field(default=32, validation_alias="EDGE_BATCH_SIZE")
+    edge_optimize_threshold: int = Field(default=1000, validation_alias="EDGE_OPTIMIZE_THRESHOLD")
+
     edge_vector_name: str = "dense"
-    edge_sparse_vector_name: str = "sparse_bm25"
+    edge_sparse_vector_name: str = "bm25"
+
+    @property
+    def edge_mutable_shard_path(self) -> str:
+        return self.edge_mutable_dir
+
+    @property
+    def edge_immutable_shard_path(self) -> str:
+        return self.edge_immutable_dir
 
     # --- Qdrant Server ---
     qdrant_server_url: str = "http://localhost:6333"
@@ -154,6 +169,7 @@ class Settings(BaseSettings):
         for dir_path in [
             self.upload_dir,
             self.processed_dir,
+            self.edge_data_dir,
             self.edge_mutable_shard_path,
             self.edge_immutable_shard_path,
             Path(self.sqlite_database_url.replace("sqlite+aiosqlite:///", "")).parent,

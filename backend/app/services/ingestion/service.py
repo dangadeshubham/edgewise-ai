@@ -38,6 +38,11 @@ from app.services.ingestion.chunker import DocumentChunker
 from app.services.ingestion.cleaner import TextCleaner
 from app.services.ingestion.extractor import DocumentExtractor, TextExtractionError
 from app.services.ingestion.validator import FileValidator
+from app.services.embeddings import get_embedding_service
+from app.services.edge_memory import (
+    generate_point_id,
+    get_edge_memory_service,
+)
 
 settings = get_settings()
 log = structlog.get_logger("edgewise.ingestion")
@@ -199,8 +204,38 @@ class IngestionService:
             chunker = DocumentChunker()
             chunks = chunker.chunk_document(extracted, document_id, version_id)
 
-            # Persist Chunks in SQLite
-            for c in chunks:
+            # Generate Embeddings & Upsert to Edge Mutable Shard
+            embedding_service = get_embedding_service()
+            edge_service = get_edge_memory_service()
+            chunk_texts = [c.content for c in chunks]
+            vectors = embedding_service.embed_texts(chunk_texts, batch_size=settings.edge_batch_size) if chunk_texts else []
+
+            # Persist Chunks in SQLite & Edge Memory
+            for c, vec in zip(chunks, vectors):
+                point_id = generate_point_id(doc.id, c.chunk_index, c.content_hash)
+                payload = {
+                    "document_id": doc.id,
+                    "document_version_id": version_id,
+                    "chunk_id": c.chunk_id,
+                    "source_id": doc.source_id,
+                    "device_id": doc.device_id,
+                    "title": doc.title or doc.original_filename,
+                    "filename": doc.original_filename,
+                    "page_start": c.metadata.get("page_start"),
+                    "page_end": c.metadata.get("page_end"),
+                    "document_type": doc.document_type,
+                    "created_at": now.isoformat(),
+                    "content_hash": c.content_hash,
+                    "sensitivity": doc.sensitivity,
+                }
+                edge_service.upsert_chunk(
+                    point_id=point_id,
+                    dense_vector=vec,
+                    text=c.content,
+                    payload=payload,
+                    shard_type="mutable",
+                )
+
                 chunk_record = DocumentChunk(
                     id=c.chunk_id,
                     document_id=doc.id,
@@ -208,12 +243,15 @@ class IngestionService:
                     content=c.content,
                     content_hash=c.content_hash,
                     token_count=c.token_estimate,
-                    is_embedded=False,
-                    vector_point_id=None,
+                    is_embedded=True,
+                    vector_point_id=point_id,
                     metadata_json=json.dumps(c.metadata),
                     created_at=now,
                 )
                 self.session.add(chunk_record)
+
+            if chunks:
+                edge_service.flush("mutable")
 
             # 7. Complete Processing
             doc.chunk_count = len(chunks)
@@ -326,7 +364,15 @@ class IngestionService:
 
         ext = file_path.suffix.lower()
 
-        # Delete existing chunks
+        # Track existing vector point IDs to remove obsolete points
+        existing_chunks = (
+            await self.session.execute(
+                select(DocumentChunk).where(DocumentChunk.document_id == document_id)
+            )
+        ).scalars().all()
+        old_point_ids = [ch.vector_point_id for ch in existing_chunks if ch.vector_point_id]
+
+        # Delete existing chunks from SQLite
         await self.session.execute(
             delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
         )
@@ -345,8 +391,40 @@ class IngestionService:
             chunker = DocumentChunker()
             chunks = chunker.chunk_document(extracted, document_id)
 
+            embedding_service = get_embedding_service()
+            edge_service = get_edge_memory_service()
+            chunk_texts = [c.content for c in chunks]
+            vectors = embedding_service.embed_texts(chunk_texts, batch_size=settings.edge_batch_size) if chunk_texts else []
+
             now = utcnow()
-            for c in chunks:
+            new_point_ids: set[str] = set()
+
+            for c, vec in zip(chunks, vectors):
+                point_id = generate_point_id(doc.id, c.chunk_index, c.content_hash)
+                new_point_ids.add(point_id)
+                payload = {
+                    "document_id": doc.id,
+                    "document_version_id": None,
+                    "chunk_id": c.chunk_id,
+                    "source_id": doc.source_id,
+                    "device_id": doc.device_id,
+                    "title": doc.title or doc.original_filename,
+                    "filename": doc.original_filename,
+                    "page_start": c.metadata.get("page_start"),
+                    "page_end": c.metadata.get("page_end"),
+                    "document_type": doc.document_type,
+                    "created_at": now.isoformat(),
+                    "content_hash": c.content_hash,
+                    "sensitivity": doc.sensitivity,
+                }
+                edge_service.upsert_chunk(
+                    point_id=point_id,
+                    dense_vector=vec,
+                    text=c.content,
+                    payload=payload,
+                    shard_type="mutable",
+                )
+
                 chunk_record = DocumentChunk(
                     id=c.chunk_id,
                     document_id=doc.id,
@@ -354,12 +432,20 @@ class IngestionService:
                     content=c.content,
                     content_hash=c.content_hash,
                     token_count=c.token_estimate,
-                    is_embedded=False,
-                    vector_point_id=None,
+                    is_embedded=True,
+                    vector_point_id=point_id,
                     metadata_json=json.dumps(c.metadata),
                     created_at=now,
                 )
                 self.session.add(chunk_record)
+
+            # Remove obsolete points from Edge so no orphans remain
+            obsolete_point_ids = [pid for pid in old_point_ids if pid not in new_point_ids]
+            if obsolete_point_ids:
+                edge_service.delete_points(obsolete_point_ids, shard_type="mutable")
+
+            if chunks or obsolete_point_ids:
+                edge_service.flush("mutable")
 
             doc.chunk_count = len(chunks)
             doc.total_tokens = sum(c.token_estimate for c in chunks)
@@ -450,13 +536,54 @@ class IngestionService:
         for p in extracted.pages:
             p.text = TextCleaner.clean(p.text)
 
+        # Track existing vector point IDs to remove obsolete points
+        existing_chunks = (
+            await self.session.execute(
+                select(DocumentChunk).where(DocumentChunk.document_id == document_id)
+            )
+        ).scalars().all()
+        old_point_ids = [ch.vector_point_id for ch in existing_chunks if ch.vector_point_id]
+
         # Delete old chunks and add new chunks
         await self.session.execute(
             delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
         )
         chunker = DocumentChunker()
         chunks = chunker.chunk_document(extracted, document_id, version_record.id)
-        for c in chunks:
+
+        embedding_service = get_embedding_service()
+        edge_service = get_edge_memory_service()
+        chunk_texts = [c.content for c in chunks]
+        vectors = embedding_service.embed_texts(chunk_texts, batch_size=settings.edge_batch_size) if chunk_texts else []
+
+        new_point_ids: set[str] = set()
+
+        for c, vec in zip(chunks, vectors):
+            point_id = generate_point_id(doc.id, c.chunk_index, c.content_hash)
+            new_point_ids.add(point_id)
+            payload = {
+                "document_id": doc.id,
+                "document_version_id": version_record.id,
+                "chunk_id": c.chunk_id,
+                "source_id": doc.source_id,
+                "device_id": doc.device_id,
+                "title": doc.title or doc.original_filename,
+                "filename": doc.original_filename,
+                "page_start": c.metadata.get("page_start"),
+                "page_end": c.metadata.get("page_end"),
+                "document_type": doc.document_type,
+                "created_at": now.isoformat(),
+                "content_hash": c.content_hash,
+                "sensitivity": doc.sensitivity,
+            }
+            edge_service.upsert_chunk(
+                point_id=point_id,
+                dense_vector=vec,
+                text=c.content,
+                payload=payload,
+                shard_type="mutable",
+            )
+
             chunk_record = DocumentChunk(
                 id=c.chunk_id,
                 document_id=doc.id,
@@ -464,12 +591,20 @@ class IngestionService:
                 content=c.content,
                 content_hash=c.content_hash,
                 token_count=c.token_estimate,
-                is_embedded=False,
-                vector_point_id=None,
+                is_embedded=True,
+                vector_point_id=point_id,
                 metadata_json=json.dumps(c.metadata),
                 created_at=now,
             )
             self.session.add(chunk_record)
+
+        # Remove obsolete points from Edge
+        obsolete_point_ids = [pid for pid in old_point_ids if pid not in new_point_ids]
+        if obsolete_point_ids:
+            edge_service.delete_points(obsolete_point_ids, shard_type="mutable")
+
+        if chunks or obsolete_point_ids:
+            edge_service.flush("mutable")
 
         doc.chunk_count = len(chunks)
         doc.total_tokens = sum(c.token_estimate for c in chunks)
@@ -494,13 +629,25 @@ class IngestionService:
         document_id: str,
         request_id: Optional[str] = None,
     ) -> None:
-        """Soft-delete a document and audit the deletion."""
+        """Soft-delete a document and audit the deletion, removing vectors from Edge."""
         doc = await self.doc_repo.get_by_id(document_id)
         if doc is None or doc.deleted_at is not None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Document '{document_id}' not found.",
             )
+
+        # Remove vectors from Edge mutable shard so deleted content is not searchable
+        existing_chunks = (
+            await self.session.execute(
+                select(DocumentChunk).where(DocumentChunk.document_id == document_id)
+            )
+        ).scalars().all()
+        point_ids = [ch.vector_point_id for ch in existing_chunks if ch.vector_point_id]
+        if point_ids:
+            edge_service = get_edge_memory_service()
+            edge_service.delete_points(point_ids, shard_type="mutable")
+            edge_service.flush("mutable")
 
         doc.deleted_at = utcnow()
         doc.updated_at = utcnow()
@@ -510,7 +657,7 @@ class IngestionService:
             description=f"Document '{document_id}' ('{doc.original_filename}') soft-deleted.",
             entity_type="document",
             entity_id=document_id,
-            details={"original_filename": doc.original_filename},
+            details={"original_filename": doc.original_filename, "vectors_removed": len(point_ids)},
             severity="warning",
             request_id=request_id,
             device_id=settings.device_id,

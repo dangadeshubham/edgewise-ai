@@ -17,13 +17,14 @@ aiosqlite>=0.20.0
 alembic>=1.14.0
 
 # --- Qdrant Edge (Local Vector Memory) ---
-qdrant-edge-py>=0.1.0
+qdrant-edge-py==0.8.0
 
 # --- Qdrant Server Client ---
-qdrant-client>=1.12.0
+qdrant-client==1.19.1
 
 # --- Embedding Model ---
-sentence-transformers>=3.3.0
+sentence-transformers==6.1.0
+torch==2.14.0
 
 # --- Document Processing ---
 PyMuPDF>=1.24.0

@@ -164,10 +164,13 @@ class SearchResultItem(BaseModel):
     score: float
     document_id: Optional[str] = None
     document_title: Optional[str] = None
+    filename: Optional[str] = None
     source_name: Optional[str] = None
     document_type: Optional[str] = None
     device_id: Optional[str] = None
     chunk_index: Optional[int] = None
+    page_start: Optional[int] = None
+    page_end: Optional[int] = None
     metadata: Optional[dict[str, Any]] = None
 
 
@@ -432,3 +435,10 @@ class DashboardMetrics(BaseModel):
     processed_documents: int
     failed_documents: int
     storage_usage_bytes: Optional[int] = None
+    edge_mutable_points: int = 0
+    edge_immutable_points: int = 0
+    embedded_chunks: int = 0
+    unembedded_chunks: int = 0
+    edge_storage_path: Optional[str] = None
+    edge_shard_available: bool = True
+    edge_last_flush: Optional[datetime] = None

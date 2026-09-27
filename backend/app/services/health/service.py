@@ -55,11 +55,15 @@ class HealthService:
         ollama_health = await self._check_ollama()
         components.append(ollama_health)
 
-        # 4. Edge Shard storage
+        # 4. Edge Shard storage & querying
         edge_health = await self._check_edge_shard()
         components.append(edge_health)
 
-        # 5. Internet connectivity
+        # 5. Embedding Model service & dimension
+        emb_health = await self._check_embedding()
+        components.append(emb_health)
+
+        # 6. Internet connectivity
         internet_health = await self._check_internet()
         components.append(internet_health)
 
@@ -86,7 +90,10 @@ class HealthService:
     async def check_readiness(self, db: AsyncSession) -> ReadinessResponse:
         """
         Kubernetes readiness probe.
-        Verifies core operational readiness (database reachable and operational).
+        Verifies core operational readiness:
+        - SQLite database operational
+        - Qdrant Edge shard loaded and queryable
+        - Embedding service available with valid dimension
         """
         checks: dict[str, bool] = {}
         try:
@@ -94,6 +101,20 @@ class HealthService:
             checks["database"] = True
         except Exception:
             checks["database"] = False
+
+        try:
+            from app.services.edge_memory import get_edge_memory_service
+            edge = get_edge_memory_service()
+            checks["edge_shard"] = edge.is_healthy("mutable")
+        except Exception:
+            checks["edge_shard"] = False
+
+        try:
+            from app.services.embeddings import get_embedding_service
+            emb = get_embedding_service()
+            checks["embedding"] = emb.is_healthy()
+        except Exception:
+            checks["embedding"] = False
 
         ready = all(checks.values()) and len(checks) > 0
         return ReadinessResponse(ready=ready, checks=checks)
@@ -116,7 +137,7 @@ class HealthService:
                 name="sqlite",
                 status="unhealthy",
                 latency_ms=round(latency, 2),
-                message=f"Database unavailable: {type(e).__name__}",
+                message=f"DATABASE_UNAVAILABLE: {type(e).__name__}",
             )
 
     async def _check_qdrant(self) -> ComponentHealth:
@@ -184,24 +205,34 @@ class HealthService:
             )
 
     async def _check_edge_shard(self) -> ComponentHealth:
-        """Check Edge shard storage directory."""
+        """Inspect actual Edge shard: exists, loaded, queryable."""
         start = time.perf_counter()
         try:
-            mutable_dir = Path(settings.edge_mutable_shard_path)
-            if mutable_dir.exists():
+            from app.services.edge_memory import get_edge_memory_service
+            edge = get_edge_memory_service()
+            if not edge.mutable_dir.exists():
                 latency = (time.perf_counter() - start) * 1000
                 return ComponentHealth(
                     name="edge",
-                    status="healthy",
+                    status="unhealthy",
                     latency_ms=round(latency, 2),
-                    message="Edge storage path accessible",
+                    message="EDGE_UNAVAILABLE: mutable shard directory does not exist",
+                )
+            info = edge.get_shard_info("mutable")
+            if info.get("status") != "ready":
+                latency = (time.perf_counter() - start) * 1000
+                return ComponentHealth(
+                    name="edge",
+                    status="unhealthy",
+                    latency_ms=round(latency, 2),
+                    message=f"EDGE_UNAVAILABLE: shard status {info.get('status')}",
                 )
             latency = (time.perf_counter() - start) * 1000
             return ComponentHealth(
                 name="edge",
-                status="unhealthy",
+                status="healthy",
                 latency_ms=round(latency, 2),
-                message="Edge unavailable: mutable shard directory does not exist",
+                message=f"Edge shard ready ({info.get('points_count', 0)} points)",
             )
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000
@@ -209,7 +240,45 @@ class HealthService:
                 name="edge",
                 status="unhealthy",
                 latency_ms=round(latency, 2),
-                message=f"Edge unavailable: {type(e).__name__}",
+                message=f"EDGE_UNAVAILABLE: {type(e).__name__}",
+            )
+
+    async def _check_embedding(self) -> ComponentHealth:
+        """Inspect embedding service: model loaded and dimension valid."""
+        start = time.perf_counter()
+        try:
+            from app.services.embeddings import get_embedding_service
+            emb = get_embedding_service()
+            if not emb.is_healthy():
+                latency = (time.perf_counter() - start) * 1000
+                return ComponentHealth(
+                    name="embedding",
+                    status="unhealthy",
+                    latency_ms=round(latency, 2),
+                    message="EMBEDDING_UNAVAILABLE: probe validation failed",
+                )
+            if emb.dimension != settings.edge_vector_dimension:
+                latency = (time.perf_counter() - start) * 1000
+                return ComponentHealth(
+                    name="embedding",
+                    status="unhealthy",
+                    latency_ms=round(latency, 2),
+                    message=f"EMBEDDING_UNAVAILABLE: dimension mismatch ({emb.dimension} != {settings.edge_vector_dimension})",
+                )
+            latency = (time.perf_counter() - start) * 1000
+            return ComponentHealth(
+                name="embedding",
+                status="healthy",
+                latency_ms=round(latency, 2),
+                message=f"Embedding model ready (dim={emb.dimension})",
+            )
+        except Exception as e:
+            latency = (time.perf_counter() - start) * 1000
+            return ComponentHealth(
+                name="embedding",
+                status="unhealthy",
+                latency_ms=round(latency, 2),
+                message=f"EMBEDDING_UNAVAILABLE: {type(e).__name__}",
             )
 
     async def _check_internet(self) -> ComponentHealth:

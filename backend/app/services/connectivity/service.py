@@ -99,8 +99,10 @@ class ConnectivityService:
             return False
 
     async def _check_edge_shard(self) -> bool:
-        """Check if Edge shard directory exists and is accessible."""
-        from pathlib import Path
-        # In Phase 3, this will check actual shard availability
-        mutable_path = Path(settings.edge_mutable_shard_path)
-        return mutable_path.exists()
+        """Check if Edge shard is loaded, accessible, and queryable."""
+        try:
+            from app.services.edge_memory import get_edge_memory_service
+            edge = get_edge_memory_service()
+            return edge.is_healthy("mutable")
+        except Exception:
+            return False

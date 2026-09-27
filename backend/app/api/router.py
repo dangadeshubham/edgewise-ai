@@ -11,13 +11,22 @@ from fastapi import APIRouter
 from app.api.v1 import documents, search, copilot, memory, sync, conflicts, devices, activity, dashboard
 
 api_router = APIRouter(prefix="/api")
+v1_router = APIRouter(prefix="/v1")
 
-api_router.include_router(documents.router, prefix="/documents", tags=["Documents"])
-api_router.include_router(search.router, prefix="/search", tags=["Search"])
-api_router.include_router(copilot.router, prefix="/copilot", tags=["AI Copilot"])
-api_router.include_router(memory.router, prefix="/memory", tags=["Memory"])
-api_router.include_router(sync.router, prefix="/sync", tags=["Synchronization"])
-api_router.include_router(conflicts.router, prefix="/conflicts", tags=["Conflicts"])
-api_router.include_router(devices.router, prefix="/devices", tags=["Devices"])
-api_router.include_router(activity.router, prefix="/activity", tags=["Activity"])
-api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
+routers = [
+    (documents.router, "/documents", ["Documents"]),
+    (search.router, "/search", ["Search"]),
+    (copilot.router, "/copilot", ["AI Copilot"]),
+    (memory.router, "/memory", ["Memory"]),
+    (sync.router, "/sync", ["Synchronization"]),
+    (conflicts.router, "/conflicts", ["Conflicts"]),
+    (devices.router, "/devices", ["Devices"]),
+    (activity.router, "/activity", ["Activity"]),
+    (dashboard.router, "/dashboard", ["Dashboard"]),
+]
+
+for r_obj, prefix, tags in routers:
+    api_router.include_router(r_obj, prefix=prefix, tags=tags)
+    v1_router.include_router(r_obj, prefix=prefix, tags=tags)
+
+api_router.include_router(v1_router)

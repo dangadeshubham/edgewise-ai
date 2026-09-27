@@ -45,13 +45,26 @@ async def get_dashboard_metrics(
 
     memory_count = await memory_repo.count_active()
 
-    # Query embedded chunks from persisted DB records
+    # Edge Memory Real Metrics
+    from app.services.edge_memory import get_edge_memory_service
+    edge_service = get_edge_memory_service()
+    mutable_points = edge_service.count_points("mutable")
+    immutable_points = edge_service.count_points("immutable") if edge_service.has_immutable_shard() else 0
+    edge_available = edge_service.is_healthy("mutable")
+    last_flush = edge_service.last_flush_time
+
+    # Query embedded vs unembedded chunks from persisted DB records
     from sqlalchemy import func, select
     from app.models.database import DocumentChunk
     vector_res = await db.execute(
         select(func.count(DocumentChunk.id)).where(DocumentChunk.is_embedded.is_(True))
     )
-    local_vectors = vector_res.scalar() or 0
+    embedded_chunks = vector_res.scalar() or 0
+
+    unembedded_res = await db.execute(
+        select(func.count(DocumentChunk.id)).where(DocumentChunk.is_embedded.is_(False))
+    )
+    unembedded_chunks = unembedded_res.scalar() or 0
 
     # Query synced cloud records from persisted DB state
     from app.models.database import MemoryRecord
@@ -71,7 +84,7 @@ async def get_dashboard_metrics(
     return DashboardMetrics(
         connectivity_state=conn_status.state,
         local_memory_records=memory_count,
-        local_vector_count=local_vectors,
+        local_vector_count=embedded_chunks,
         cloud_record_count=cloud_records,
         pending_sync=pending_sync,
         failed_sync=failed_sync,
@@ -84,4 +97,11 @@ async def get_dashboard_metrics(
         processed_documents=processed_docs,
         failed_documents=failed_docs,
         storage_usage_bytes=storage_bytes,
+        edge_mutable_points=mutable_points,
+        edge_immutable_points=immutable_points,
+        embedded_chunks=embedded_chunks,
+        unembedded_chunks=unembedded_chunks,
+        edge_storage_path=str(edge_service.mutable_dir),
+        edge_shard_available=edge_available,
+        edge_last_flush=last_flush,
     )
