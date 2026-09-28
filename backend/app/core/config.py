@@ -203,3 +203,7 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Factory function for settings singleton."""
     return Settings()
+
+
+settings: Settings = get_settings()
+

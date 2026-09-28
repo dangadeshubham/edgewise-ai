@@ -514,3 +514,97 @@ class DashboardMetrics(BaseModel):
     edge_storage_path: Optional[str] = None
     edge_shard_available: bool = True
     edge_last_flush: Optional[datetime] = None
+
+
+# =============================================================================
+# Conflict Management (Phase 8)
+# =============================================================================
+
+class ConflictResponse(BaseModel):
+    id: str
+    record_type: str
+    record_id: str
+    local_revision: int
+    local_content_hash: str
+    local_updated_at: datetime
+    local_content_preview: Optional[str] = None
+    local_device_id: str
+    cloud_revision: int
+    cloud_content_hash: str
+    cloud_updated_at: datetime
+    cloud_content_preview: Optional[str] = None
+    cloud_device_id: Optional[str] = None
+    status: str
+    resolution: Optional[str] = None
+    resolved_by: Optional[str] = None
+    resolved_at: Optional[datetime] = None
+    resolution_notes: Optional[str] = None
+    resolution_metadata_json: Optional[str] = None
+    version: int = 1
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConflictListResponse(BaseModel):
+    items: list[ConflictResponse]
+    total: int
+    open_count: int = 0
+    in_review_count: int = 0
+    resolved_count: int = 0
+    dismissed_count: int = 0
+
+
+class ConflictDiffLineResponse(BaseModel):
+    line_number_local: Optional[int] = None
+    line_number_cloud: Optional[int] = None
+    line_type: str
+    content: str
+
+
+class ConflictFieldDiffResponse(BaseModel):
+    field_name: str
+    local_value: Any = None
+    cloud_value: Any = None
+    is_different: bool
+
+
+class ConflictDiffDetailResponse(BaseModel):
+    conflict: ConflictResponse
+    lines: list[ConflictDiffLineResponse]
+    metadata_diffs: list[ConflictFieldDiffResponse]
+    json_field_diffs: Optional[list[ConflictFieldDiffResponse]] = None
+    additions_count: int
+    deletions_count: int
+    unchanged_count: int
+    is_identical: bool
+
+
+class ConflictClaimRequest(BaseModel):
+    claimed_by: str = Field(default="operator", min_length=1, max_length=128)
+    expected_version: Optional[int] = None
+
+
+class ConflictResolveRequest(BaseModel):
+    resolution: str = Field(..., description="keep_local, keep_cloud, merge, manual")
+    merged_content: Optional[str] = Field(default=None, max_length=1_000_000)
+    manual_content: Optional[str] = Field(default=None, max_length=1_000_000)
+    resolved_by: str = Field(default="operator", min_length=1, max_length=128)
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    expected_version: Optional[int] = None
+
+
+class ConflictDismissRequest(BaseModel):
+    dismissed_by: str = Field(default="operator", min_length=1, max_length=128)
+    reason: Optional[str] = Field(default=None, max_length=2000)
+    expected_version: Optional[int] = None
+
+
+class ConflictSuggestMergeResponse(BaseModel):
+    conflict_id: str
+    label: str = "AI suggested merge"
+    source: str
+    requires_user_approval: bool = True
+    suggested_content: str
+    note: str
+

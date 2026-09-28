@@ -333,8 +333,22 @@ class Conflict(Base):
     resolved_by = Column(String(64), nullable=True)
     resolved_at = Column(DateTime, nullable=True)
     resolution_notes = Column(Text, nullable=True)
+    resolution_metadata_json = Column(Text, nullable=True)
+    version = Column(Integer, nullable=False, default=1)
 
     created_at = Column(DateTime, default=utcnow)
+
+    @property
+    def local_content(self) -> str:
+        return self.local_content_preview or ""
+
+    @property
+    def cloud_content(self) -> str:
+        return self.cloud_content_preview or ""
+
+    @property
+    def detected_at(self) -> datetime:
+        return self.created_at
 
     __table_args__ = (
         Index("ix_conflicts_status", "status"),
