@@ -18,7 +18,12 @@ from app.services.synchronization.constants import (
     is_retryable_error,
     validate_transition,
 )
+from app.services.synchronization.edge_sync_service import (
+    EdgeCloudSyncService,
+    EdgeSyncResult,
+)
 from app.services.synchronization.engine import SyncEngine, SyncRunResult
+from app.services.synchronization.qdrant_backend import QdrantServerSyncBackend
 from app.services.synchronization.queue_service import SyncQueueService
 
 __all__ = [
@@ -32,8 +37,11 @@ __all__ = [
     "is_retryable_error",
     "SyncBackend",
     "LocalNoopSyncBackend",
+    "QdrantServerSyncBackend",
     "SyncResult",
     "SyncQueueService",
     "SyncEngine",
     "SyncRunResult",
+    "EdgeCloudSyncService",
+    "EdgeSyncResult",
 ]

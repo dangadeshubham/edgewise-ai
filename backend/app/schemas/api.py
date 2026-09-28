@@ -308,7 +308,7 @@ class SyncStatusResponse(BaseModel):
     last_sync: Optional[datetime] = None
     next_retry: Optional[datetime] = None
     current_device_id: str
-    # Phase 6 queue observability extensions
+    # Phase 6 & 7 cloud sync observability extensions
     ready_pending_count: Optional[int] = 0
     cancelled_count: Optional[int] = 0
     retrying_count: Optional[int] = 0
@@ -316,6 +316,12 @@ class SyncStatusResponse(BaseModel):
     latest_successful_sync: Optional[datetime] = None
     total_attempts: Optional[int] = 0
     average_attempt_duration_ms: Optional[float] = None
+    cloud_available: Optional[bool] = False
+    qdrant_server_url: Optional[str] = None
+    qdrant_collection: Optional[str] = None
+    snapshot_state: Optional[str] = "ready"
+    immutable_shard_points: Optional[int] = 0
+    uploaded_count: Optional[int] = 0
 
 
 class SyncRunResponse(BaseModel):
@@ -325,6 +331,13 @@ class SyncRunResponse(BaseModel):
     items_failed: int
     conflicts_detected: int
     duration_ms: float
+    started: Optional[bool] = True
+    uploaded: Optional[int] = 0
+    deleted: Optional[int] = 0
+    failed: Optional[int] = 0
+    conflicts: Optional[int] = 0
+    snapshot_applied: Optional[bool] = False
+    server_points_count: Optional[int] = 0
 
 
 class SyncHistoryItem(BaseModel):

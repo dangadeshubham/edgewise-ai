@@ -185,10 +185,11 @@ class EdgeMemoryService:
     def init_immutable_shard(self) -> None:
         """Explicitly create empty immutable shard on disk."""
         with self._lock:
+            self.close("immutable")
+            if self.immutable_dir.exists():
+                import shutil
+                shutil.rmtree(self.immutable_dir, ignore_errors=True)
             self.immutable_dir.mkdir(parents=True, exist_ok=True)
-            if self._immutable_shard is not None:
-                self._immutable_shard.close()
-                self._immutable_shard = None
             self._immutable_shard = qdrant_edge.EdgeShard.create(
                 str(self.immutable_dir),
                 self._config,

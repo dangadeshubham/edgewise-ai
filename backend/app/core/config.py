@@ -112,10 +112,19 @@ class Settings(BaseSettings):
     def edge_immutable_shard_path(self) -> str:
         return self.edge_immutable_dir
 
-    # --- Qdrant Server ---
+    # --- Qdrant Server (Phase 7 Real Cloud Sync) ---
     qdrant_server_url: str = "http://localhost:6333"
     qdrant_api_key: Optional[str] = None
     qdrant_collection_name: str = "edgewise-knowledge"
+    qdrant_timeout_seconds: float = 10.0
+    qdrant_verify_remote: bool = True
+    sync_drain_before_snapshot: bool = True
+    sync_cleanup_mutable_after_refresh: bool = True
+
+    @property
+    def qdrant_collection(self) -> str:
+        """Alias for qdrant_collection_name."""
+        return self.qdrant_collection_name
 
     # --- Ollama ---
     ollama_base_url: str = "http://localhost:11434"
