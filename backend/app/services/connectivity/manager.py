@@ -132,6 +132,7 @@ class DependencyState:
             "status": self.status.value,
             "last_check": self.last_check.isoformat() if self.last_check else None,
             "last_available": self.last_available.isoformat() if self.last_available else None,
+            "last_failure": self.last_unavailable.isoformat() if self.last_unavailable else None,
             "latency_ms": self.latency_ms,
             "message": self.message,
             "consecutive_failures": self.consecutive_failures,
@@ -494,6 +495,13 @@ class ConnectivityManager:
         # Cap event history
         if len(self._events) > self._max_events:
             self._events = self._events[-self._max_events:]
+
+        # Notify registered listeners (e.g. audit persistence)
+        for listener in self._event_listeners:
+            try:
+                listener(event)
+            except Exception:
+                pass
 
     # ---- Full Check ----
 

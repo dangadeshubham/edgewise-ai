@@ -73,6 +73,27 @@ async def copilot_query(
 
         await db.commit()
 
+        # Phase 10: Record RAG Observability Telemetry
+        from app.core.metrics import get_metrics_registry
+        metrics = get_metrics_registry()
+        metrics.observe_retrieval(result.retrieval_latency_ms / 1000.0)
+        metrics.observe_embedding(result.embedding_latency_ms / 1000.0)
+        metrics.observe_rag_generation(result.generation_latency_ms / 1000.0)
+
+        logger.info(
+            "copilot_query_telemetry",
+            conversation_id=result.conversation_id,
+            top_retrieval_score=result.top_retrieval_score,
+            source_count=result.source_count,
+            chunk_count=result.chunk_count,
+            embedding_latency_ms=result.embedding_latency_ms,
+            retrieval_latency_ms=result.retrieval_latency_ms,
+            generation_latency_ms=result.generation_latency_ms,
+            total_latency_ms=result.total_latency_ms,
+            offline_mode=result.offline_mode,
+            model_used=result.model_used,
+        )
+
         return CopilotQueryResponse(
             conversation_id=result.conversation_id,
             answer=result.answer,

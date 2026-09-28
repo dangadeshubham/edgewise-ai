@@ -50,6 +50,9 @@ class ComponentHealth(BaseModel):
     status: str  # healthy, unhealthy, degraded, unknown
     latency_ms: Optional[float] = None
     message: Optional[str] = None
+    consecutive_failures: int = 0
+    last_successful_probe: Optional[datetime] = None
+    last_failure: Optional[datetime] = None
 
 
 class HealthResponse(BaseModel):
@@ -80,9 +83,11 @@ class DependencyDetail(BaseModel):
     status: str  # available, unavailable, degraded, unknown
     last_check: Optional[str] = None
     last_available: Optional[str] = None
+    last_failure: Optional[str] = None
     latency_ms: Optional[float] = None
     message: Optional[str] = None
     consecutive_failures: int = 0
+    transition_timestamps: Optional[dict[str, str]] = None
 
 
 class ConnectivityEventResponse(BaseModel):
@@ -607,4 +612,30 @@ class ConflictSuggestMergeResponse(BaseModel):
     requires_user_approval: bool = True
     suggested_content: str
     note: str
+
+
+# =============================================================================
+# Activity & Audit Telemetry
+# =============================================================================
+
+class ActivityEventResponse(BaseModel):
+    id: str
+    device_id: Optional[str] = None
+    event_type: str
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+    description: str
+    severity: str = "info"
+    details: Optional[dict[str, Any]] = None
+    operation_id: Optional[str] = None
+    request_id: Optional[str] = None
+    created_at: datetime
+
+
+class ActivityListResponse(BaseModel):
+    items: list[ActivityEventResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
 

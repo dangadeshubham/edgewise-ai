@@ -45,11 +45,41 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+from sqlalchemy import text
+
+
+async def install_audit_immutability(conn) -> None:
+    """Installs database triggers to enforce append-only immutability on audit_events."""
+    await conn.execute(
+        text(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_audit_events_prevent_update
+            BEFORE UPDATE ON audit_events
+            BEGIN
+                SELECT RAISE(ABORT, 'Audit events are strictly append-only and immutable');
+            END;
+            """
+        )
+    )
+    await conn.execute(
+        text(
+            """
+            CREATE TRIGGER IF NOT EXISTS trg_audit_events_prevent_delete
+            BEFORE DELETE ON audit_events
+            BEGIN
+                SELECT RAISE(ABORT, 'Audit events are strictly append-only and immutable');
+            END;
+            """
+        )
+    )
+
+
 async def init_db() -> None:
-    """Create all tables. Used for initial setup."""
+    """Create all tables and install immutability triggers. Used for initial setup."""
     from app.models.database import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await install_audit_immutability(conn)
 
 
 async def close_db() -> None:

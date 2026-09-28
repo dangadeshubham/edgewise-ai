@@ -82,6 +82,11 @@ async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 
     # Truncate tables to ensure complete test isolation
     async with session_factory() as clean_session:
+        try:
+            await clean_session.execute(text("DROP TRIGGER IF EXISTS trg_audit_events_prevent_delete"))
+            await clean_session.execute(text("DROP TRIGGER IF EXISTS trg_audit_events_prevent_update"))
+        except Exception:
+            pass
         for tbl in [
             "conversation_messages",
             "conversations",

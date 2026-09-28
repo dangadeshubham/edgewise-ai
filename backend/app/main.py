@@ -46,9 +46,45 @@ async def lifespan(app: FastAPI):
     # Ensure required data directories exist
     settings.ensure_directories()
 
+    # Ensure SQLite audit immutability triggers are installed
+    try:
+        from app.core.database import engine, install_audit_immutability
+        async with engine.begin() as conn:
+            await install_audit_immutability(conn)
+    except Exception as e:
+        await log.awarning("audit_immutability_trigger_install_failed", error=str(e))
+
     # Initialize connectivity manager and run initial check
     from app.services.connectivity.manager import get_connectivity_manager
     connectivity = get_connectivity_manager()
+
+    import asyncio
+
+    async def _audit_connectivity_listener(event):
+        try:
+            from app.core.database import async_session_factory
+            from app.repositories.audit import AuditRepository
+            async with async_session_factory() as sess:
+                repo = AuditRepository(sess)
+                ev_type = event.event_type.value
+                if ev_type == "STATE_CHANGED":
+                    ev_type = f"CONNECTIVITY_{event.new_status.upper()}"
+                await repo.log_event(
+                    event_type=ev_type,
+                    description=event.message,
+                    entity_type="connectivity",
+                    entity_id=event.dependency.value if event.dependency else None,
+                    details={"old": event.old_status, "new": event.new_status},
+                    severity="warning" if "OFFLINE" in ev_type or "DEGRADED" in ev_type else "info",
+                    device_id=settings.device_id,
+                )
+                await sess.commit()
+        except Exception:
+            pass
+
+    connectivity.register_event_listener(
+        lambda ev: asyncio.create_task(_audit_connectivity_listener(ev))
+    )
     try:
         initial_state = await connectivity.check_all()
         await log.ainfo(
@@ -155,40 +191,80 @@ app.add_middleware(
 )
 
 
-# --- Request ID Middleware ---
+# --- Request ID & Telemetry Middleware ---
 @app.middleware("http")
 async def add_request_id(request: Request, call_next) -> Response:
-    """Attach a unique request ID to every request for tracing."""
+    """Attach a unique request ID to every request and collect latency metrics."""
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
+    request.state.request_id = request_id
     structlog.contextvars.clear_contextvars()
     structlog.contextvars.bind_contextvars(request_id=request_id)
 
+    from app.core.metrics import get_metrics_registry
+
     start = time.perf_counter()
     response = await call_next(request)
-    duration_ms = (time.perf_counter() - start) * 1000
+    duration_s = time.perf_counter() - start
+    duration_ms = duration_s * 1000
 
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Response-Time-Ms"] = f"{duration_ms:.1f}"
+
+    # Collect telemetry metrics
+    metrics = get_metrics_registry()
+    path = request.url.path
+    metrics.inc_request(request.method, path, response.status_code)
+    metrics.observe_request_duration(request.method, path, duration_s)
 
     return response
 
 
 # --- Exception Handlers ---
+from app.core.errors import EdgewiseException
+
+
+@app.exception_handler(EdgewiseException)
+async def edgewise_exception_handler(
+    request: Request, exc: EdgewiseException
+) -> JSONResponse:
+    """Standardized handler for domain exceptions mapping to categorized error taxonomy."""
+    request_id = getattr(request.state, "request_id", None) or structlog.contextvars.get_contextvars().get("request_id")
+    payload = exc.to_dict()
+    payload["request_id"] = request_id
+
+    from app.core.metrics import get_metrics_registry
+    get_metrics_registry().inc_error(exc.category.value)
+
+    log = structlog.get_logger("edgewise.error")
+    await log.awarning(
+        "domain_exception_handled",
+        category=exc.category.value,
+        status_code=exc.status_code,
+        message=exc.message,
+        operation_id=exc.operation_id,
+        request_id=request_id,
+    )
+    return JSONResponse(status_code=exc.status_code, content=payload)
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """Standardized validation error response without leaking internals."""
-    request_id = structlog.contextvars.get_contextvars().get("request_id")
+    request_id = getattr(request.state, "request_id", None) or structlog.contextvars.get_contextvars().get("request_id")
     errors = exc.errors()
     formatted = [
         f"{'.'.join(str(loc) for loc in err.get('loc', []))}: {err.get('msg')}"
         for err in errors
     ]
+    from app.core.metrics import get_metrics_registry
+    get_metrics_registry().inc_error("VALIDATION_ERROR")
     return JSONResponse(
         status_code=422,
         content={
             "error": "validation_error",
+            "category": "VALIDATION_ERROR",
             "detail": "; ".join(formatted),
             "request_id": request_id,
         },
@@ -200,7 +276,7 @@ async def http_exception_handler(
     request: Request, exc: HTTPException
 ) -> JSONResponse:
     """Standardized HTTP exception response."""
-    request_id = structlog.contextvars.get_contextvars().get("request_id")
+    request_id = getattr(request.state, "request_id", None) or structlog.contextvars.get_contextvars().get("request_id")
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -215,7 +291,10 @@ async def http_exception_handler(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all unhandled error handler. Never exposes raw stack traces or secrets."""
-    request_id = structlog.contextvars.get_contextvars().get("request_id")
+    request_id = getattr(request.state, "request_id", None) or structlog.contextvars.get_contextvars().get("request_id")
+    from app.core.metrics import get_metrics_registry
+    get_metrics_registry().inc_error("INTERNAL_SERVER_ERROR")
+
     log = structlog.get_logger("edgewise.error")
     await log.aerror("unhandled_exception", error=str(exc), exc_info=True, request_id=request_id)
     return JSONResponse(
@@ -226,6 +305,27 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
             "request_id": request_id,
         },
     )
+
+
+# --- Observability & Metrics Endpoints ---
+from fastapi.responses import PlainTextResponse
+
+
+@app.get("/metrics", tags=["Observability"])
+async def prometheus_metrics() -> Response:
+    """Prometheus-compatible plaintext metrics endpoint."""
+    from app.core.metrics import get_metrics_registry
+    return PlainTextResponse(
+        get_metrics_registry().to_prometheus_format(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
+
+
+@app.get("/api/metrics", tags=["Observability"])
+async def json_metrics() -> dict:
+    """Structured JSON operational metrics endpoint."""
+    from app.core.metrics import get_metrics_registry
+    return get_metrics_registry().to_json()
 
 
 # --- Mount Routers ---

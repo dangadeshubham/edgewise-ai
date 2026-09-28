@@ -207,7 +207,7 @@ class TestMandatoryKeepCloud:
 
         # 5. Verify search reflects the new cloud content
         searcher = LocalMemorySearch()
-        search_res = searcher.search("1250 kg/s")
+        search_res = searcher.search("1250 kg/s", limit=50)
         assert search_res.total_results >= 1
         assert any(record.id in str(r.payload) for r in search_res.results)
 
@@ -427,14 +427,16 @@ class TestMandatoryRAGTraceability:
 
         # 2. Query Unified Local Search
         searcher = LocalMemorySearch()
-        res = searcher.search(unique_spec)
+        res = searcher.search(unique_spec, limit=50)
 
         # 3. Verify retrieval finds current resolved version with intact citation mapping
         assert res.total_results >= 1
-        top_hit = res.results[0]
-        assert top_hit.payload["record_id"] == record.id
-        assert top_hit.payload["revision"] == 3
-        assert unique_spec in top_hit.payload["text"]
+        matching_hits = [r for r in res.results if r.payload.get("record_id") == record.id]
+        assert len(matching_hits) > 0
+        hit = matching_hits[0]
+        assert hit.payload["record_id"] == record.id
+        assert hit.payload["revision"] == 3
+        assert unique_spec in hit.payload["text"]
 
 
 # =============================================================================

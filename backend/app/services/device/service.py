@@ -77,7 +77,21 @@ class DeviceService:
             updated_at=now,
         )
 
-        return await self.repo.create(device)
+        created_device = await self.repo.create(device)
+
+        from app.repositories.audit import AuditRepository
+        audit_repo = AuditRepository(self.session)
+        await audit_repo.log_event(
+            event_type="DEVICE_REGISTERED",
+            description=f"Device '{data.name}' registered at site '{data.site}'.",
+            entity_type="device",
+            entity_id=device_id,
+            details={"name": data.name, "site": data.site, "software_version": data.software_version},
+            severity="info",
+            device_id=device_id,
+        )
+
+        return created_device
 
     async def get_device(self, device_id: str) -> Device:
         """Retrieve a registered device by its UUID."""

@@ -95,7 +95,18 @@ class HealthService:
         from app.main import APP_START_TIME
         uptime = time.time() - APP_START_TIME if APP_START_TIME > 0 else 0.0
 
-        # Add connectivity manager summary
+        # Add operational health telemetry from ConnectivityManager
+        for c in components:
+            try:
+                dep_name = DependencyName(c.name)
+                if dep_name in self.connectivity.dependencies:
+                    dep = self.connectivity.dependencies[dep_name]
+                    c.consecutive_failures = dep.consecutive_failures
+                    c.last_successful_probe = dep.last_available
+                    c.last_failure = dep.last_unavailable
+            except Exception:
+                pass
+
         conn_state = self.connectivity.state.value
         app_mode = self.connectivity.application_mode
 

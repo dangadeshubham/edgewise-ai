@@ -175,10 +175,14 @@ class IngestionService:
         )
         await self.session.flush()
 
-        # 6. Extraction, Cleaning, and Chunking
+        # 6. Extraction, Cleaning, and Chunking with Telemetry
+        t_ingest_start = time.perf_counter()
+        operation_id = f"ingest-{uuid.uuid4().hex[:12]}"
         try:
             # Text Extraction
+            t_extract_start = time.perf_counter()
             extracted = DocumentExtractor.extract(content, ext, sanitized_filename)
+            extraction_duration_ms = (time.perf_counter() - t_extract_start) * 1000
 
             # Text Cleaning
             cleaned_text = TextCleaner.clean(extracted.text)
@@ -201,16 +205,21 @@ class IngestionService:
             self.session.add(doc_version)
 
             # Chunking
+            t_chunk_start = time.perf_counter()
             chunker = DocumentChunker()
             chunks = chunker.chunk_document(extracted, document_id, version_id)
+            chunking_duration_ms = (time.perf_counter() - t_chunk_start) * 1000
 
             # Generate Embeddings & Upsert to Edge Mutable Shard
+            t_embed_start = time.perf_counter()
             embedding_service = get_embedding_service()
             edge_service = get_edge_memory_service()
             chunk_texts = [c.content for c in chunks]
             vectors = embedding_service.embed_texts(chunk_texts, batch_size=settings.edge_batch_size) if chunk_texts else []
+            embedding_duration_ms = (time.perf_counter() - t_embed_start) * 1000
 
             # Persist Chunks in SQLite & Edge Memory
+            t_upsert_start = time.perf_counter()
             for c, vec in zip(chunks, vectors):
                 point_id = generate_point_id(doc.id, c.chunk_index, c.content_hash)
                 payload = {
@@ -252,6 +261,9 @@ class IngestionService:
 
             if chunks:
                 edge_service.flush("mutable")
+            edge_upsert_duration_ms = (time.perf_counter() - t_upsert_start) * 1000
+
+            total_ingestion_duration_ms = (time.perf_counter() - t_ingest_start) * 1000
 
             # 7. Complete Processing
             doc.chunk_count = len(chunks)
@@ -261,16 +273,37 @@ class IngestionService:
             doc.indexed_at = utcnow()
             doc.updated_at = utcnow()
 
+            telemetry_details = {
+                "file_size": file_size,
+                "document_type": ext,
+                "extraction_duration_ms": round(extraction_duration_ms, 2),
+                "chunking_duration_ms": round(chunking_duration_ms, 2),
+                "embedding_duration_ms": round(embedding_duration_ms, 2),
+                "edge_upsert_duration_ms": round(edge_upsert_duration_ms, 2),
+                "total_ingestion_duration_ms": round(total_ingestion_duration_ms, 2),
+                "chunk_count": len(chunks),
+                "embedding_count": len(vectors),
+                "total_tokens": doc.total_tokens,
+                "operation_id": operation_id,
+            }
+
             await self.audit_repo.log_event(
                 event_type="processing_completed",
                 description=f"Document '{doc.id}' successfully processed into {len(chunks)} chunks.",
                 entity_type="document",
                 entity_id=doc.id,
-                details={"chunk_count": len(chunks), "total_tokens": doc.total_tokens},
+                details=telemetry_details,
                 severity="info",
                 request_id=request_id,
+                operation_id=operation_id,
                 device_id=settings.device_id,
             )
+
+            # Record system metrics
+            from app.core.metrics import get_metrics_registry
+            metrics = get_metrics_registry()
+            metrics.inc_ingestion("completed", len(chunks))
+            metrics.observe_embedding(embedding_duration_ms / 1000.0)
 
             await self.session.commit()
             await log.ainfo(
@@ -278,6 +311,8 @@ class IngestionService:
                 document_id=doc.id,
                 chunks=doc.chunk_count,
                 tokens=doc.total_tokens,
+                operation_id=operation_id,
+                total_duration_ms=round(total_ingestion_duration_ms, 2),
             )
 
             return DocumentUploadResponse(
@@ -298,14 +333,18 @@ class IngestionService:
             doc.processing_error = safe_error
             doc.updated_at = utcnow()
 
+            from app.core.metrics import get_metrics_registry
+            get_metrics_registry().inc_ingestion("failed")
+
             await self.audit_repo.log_event(
                 event_type="processing_failed",
                 description=f"Document extraction failed: {safe_error}",
                 entity_type="document",
                 entity_id=doc.id,
-                details={"error": safe_error},
+                details={"error": safe_error, "failure_category": "VALIDATION_ERROR", "operation_id": operation_id},
                 severity="error",
                 request_id=request_id,
+                operation_id=operation_id,
                 device_id=settings.device_id,
             )
             await self.session.commit()
@@ -316,18 +355,27 @@ class IngestionService:
 
         except Exception as exc:
             safe_error = f"Internal processing error: {type(exc).__name__}"
-            await log.aerror("document_processing_exception", exc_info=True, document_id=doc.id)
+            await log.aerror("document_processing_exception", exc_info=True, document_id=doc.id, operation_id=operation_id)
             doc.processing_status = "failed"
             doc.processing_error = safe_error
             doc.updated_at = utcnow()
+
+            from app.core.metrics import get_metrics_registry
+            get_metrics_registry().inc_ingestion("failed")
 
             await self.audit_repo.log_event(
                 event_type="processing_failed",
                 description=f"Document processing encountered error: {safe_error}",
                 entity_type="document",
                 entity_id=doc.id,
-                details={"error_type": type(exc).__name__},
+                details={"error_type": type(exc).__name__, "failure_category": "STORAGE_ERROR", "operation_id": operation_id},
                 severity="error",
+                request_id=request_id,
+                operation_id=operation_id,
+                device_id=settings.device_id,
+            )
+            await self.session.commit()
+            raise HTTPException(
                 request_id=request_id,
                 device_id=settings.device_id,
             )

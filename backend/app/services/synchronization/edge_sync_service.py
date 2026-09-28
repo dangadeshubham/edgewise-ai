@@ -14,7 +14,7 @@ Implements bidirectional Edge ↔ Cloud synchronization:
 from __future__ import annotations
 
 import asyncio
-import datetime
+from datetime import datetime, timezone
 import time
 import uuid
 from dataclasses import dataclass
@@ -46,8 +46,8 @@ logger = structlog.get_logger("edgewise.sync.edge_service")
 _SYNC_BARRIER_LOCK = asyncio.Lock()
 
 
-def utcnow() -> datetime.datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -120,13 +120,15 @@ class EdgeCloudSyncService:
             )
 
         # Audit: SYNC_STARTED
+        start_time_iso = datetime.now(timezone.utc).isoformat()
         await self.audit_repo.log_event(
             event_type="SYNC_STARTED",
             description=f"Bidirectional Edge ↔ Cloud sync initiated (Run ID: {sync_run_id})",
             entity_type="sync_run",
             entity_id=sync_run_id,
-            details={"device_id": settings.device_id, "server_url": self.backend.server_url},
+            details={"device_id": settings.device_id, "server_url": self.backend.server_url, "start_time": start_time_iso},
             severity="info",
+            operation_id=sync_run_id,
             device_id=settings.device_id,
         )
 
@@ -265,6 +267,8 @@ class EdgeCloudSyncService:
             barrier_state = "NORMAL"
 
         total_duration = (time.perf_counter() - start_time) * 1000
+        remote_time_ms = batch_result.duration_ms if 'batch_result' in locals() else 0.0
+        queue_time_ms = max(0.0, total_duration - remote_time_ms)
 
         msg = (
             f"Edge ↔ Cloud synchronization complete: {uploaded} uploaded to cloud, "
@@ -272,19 +276,37 @@ class EdgeCloudSyncService:
             f"Immutable shard updated ({server_points_count} points)."
         )
 
+        from app.core.metrics import get_metrics_registry
+        metrics = get_metrics_registry()
+        metrics.inc_sync_run("completed" if failed == 0 else "partial")
+        if uploaded > 0:
+            metrics.inc_sync_record("upload", "success")
+        if failed > 0:
+            metrics.inc_sync_record("upload", "failed")
+
         await self.audit_repo.log_event(
             event_type="SYNC_COMPLETED",
             description=msg,
             entity_type="sync_run",
             entity_id=sync_run_id,
             details={
+                "sync_run_id": sync_run_id,
+                "start_time": start_time_iso,
+                "end_time": datetime.now(timezone.utc).isoformat(),
+                "duration_ms": round(total_duration, 2),
+                "queue_time_ms": round(queue_time_ms, 2),
+                "remote_operation_time_ms": round(remote_time_ms, 2),
+                "total_sync_run_time_ms": round(total_duration, 2),
+                "records_attempted": uploaded + failed + deleted,
                 "uploaded": uploaded,
+                "deleted": deleted,
                 "failed": failed,
                 "conflicts": conflicts,
-                "duration_ms": round(total_duration, 2),
+                "snapshot_status": "applied" if snapshot_applied else "unchanged",
                 "snapshot_applied": snapshot_applied,
             },
             severity="info",
+            operation_id=sync_run_id,
             device_id=settings.device_id,
         )
 
