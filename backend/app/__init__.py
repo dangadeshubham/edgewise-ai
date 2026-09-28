@@ -1,1 +1,3 @@
-# EDGEWISE AI — Backend Application Package
+"""EDGEWISE AI — Backend Application Package."""
+
+__version__ = "0.1.0"

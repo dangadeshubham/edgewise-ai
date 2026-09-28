@@ -1,73 +1,153 @@
-version: "3.8"
-
 services:
-  # --- Backend API + Qdrant Edge (in-process) ---
-  backend:
+  # --- Central Qdrant Server (Cloud Mirror / Sync Target) ---
+  qdrant-server:
+    image: qdrant/qdrant:latest
+    container_name: edgewise-qdrant-server
+    restart: unless-stopped
+    volumes:
+      - qdrant-storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - edgewise-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: ${QDRANT_MEMORY_LIMIT:-1G}
+
+  # --- Ollama Local LLM Runtime ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: edgewise-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - edgewise-network
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "${OLLAMA_CPU_LIMIT:-4.0}"
+          memory: ${OLLAMA_MEMORY_LIMIT:-4G}
+
+  # --- EDGEWISE AI Backend (FastAPI + Embedded Qdrant Edge) ---
+  edgewise-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: edgewise-backend
+    restart: unless-stopped
     ports:
-      - "8000:8000"
-    env_file:
-      - .env
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - edgewise-sqlite:/app/data/sqlite
       - edgewise-edge:/app/data/qdrant_edge
       - edgewise-uploads:/app/data/uploads
       - edgewise-processed:/app/data/processed
+    environment:
+      - APP_VERSION=${APP_VERSION:-0.1.0}
+      - DEVICE_ID=${DEVICE_ID:-edge-device-001}
+      - DEVICE_NAME=${DEVICE_NAME:-Site-A Field Terminal}
+      - DEVICE_SITE=${DEVICE_SITE:-site-alpha}
+      - AUTO_REGISTER_LOCAL_DEVICE=${AUTO_REGISTER_LOCAL_DEVICE:-false}
+      - BACKEND_HOST=0.0.0.0
+      - BACKEND_PORT=8000
+      - BACKEND_LOG_LEVEL=${BACKEND_LOG_LEVEL:-info}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
+      - SQLITE_DATABASE_URL=sqlite+aiosqlite:////app/data/sqlite/edgewise.db
+      - EDGE_MUTABLE_SHARD_PATH=/app/data/qdrant_edge/mutable
+      - EDGE_IMMUTABLE_SHARD_PATH=/app/data/qdrant_edge/immutable
+      - EDGE_VECTOR_NAME=${EDGE_VECTOR_NAME:-dense}
+      - EDGE_SPARSE_VECTOR_NAME=${EDGE_SPARSE_VECTOR_NAME:-sparse_bm25}
+      - QDRANT_SERVER_URL=http://qdrant-server:6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME:-edgewise-knowledge}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-120}
+      - EMBEDDING_MODEL_NAME=${EMBEDDING_MODEL_NAME:-all-MiniLM-L6-v2}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-50}
+      - ALLOWED_FILE_TYPES=${ALLOWED_FILE_TYPES:-.pdf,.txt,.md,.json,.docx}
+      - CHUNK_SIZE=${CHUNK_SIZE:-512}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-64}
+      - UPLOAD_DIR=/app/data/uploads
+      - PROCESSED_DIR=/app/data/processed
+      - SYNC_BATCH_SIZE=${SYNC_BATCH_SIZE:-50}
+      - SYNC_RETRY_MAX=${SYNC_RETRY_MAX:-5}
+      - SYNC_RETRY_BASE_DELAY_SECONDS=${SYNC_RETRY_BASE_DELAY_SECONDS:-2.0}
+      - SYNC_INTERVAL_SECONDS=${SYNC_INTERVAL_SECONDS:-300}
+      - DEFAULT_SENSITIVITY=${DEFAULT_SENSITIVITY:-internal}
+      - SYNC_ELIGIBLE_SENSITIVITIES=${SYNC_ELIGIBLE_SENSITIVITIES:-public,internal}
+      - LOCAL_ONLY_SENSITIVITIES=${LOCAL_ONLY_SENSITIVITIES:-confidential,restricted}
+    networks:
+      - edgewise-network
     depends_on:
       qdrant-server:
         condition: service_healthy
-    restart: unless-stopped
+      ollama:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/health/live'); exit(0 if r.status_code == 200 else 1)"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 25s
+    deploy:
+      resources:
+        limits:
+          cpus: "${BACKEND_CPU_LIMIT:-2.0}"
+          memory: ${BACKEND_MEMORY_LIMIT:-2G}
 
-  # --- Frontend ---
-  frontend:
+  # --- EDGEWISE AI Production Frontend (Nginx Alpine) ---
+  edgewise-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    container_name: edgewise-frontend
+    restart: unless-stopped
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
+    networks:
+      - edgewise-network
     depends_on:
-      - backend
-    restart: unless-stopped
-
-  # --- Qdrant Server (Central Cloud Vector DB) ---
-  qdrant-server:
-    image: qdrant/qdrant:latest
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant-storage:/qdrant/storage
-    environment:
-      - QDRANT__SERVICE__GRPC_PORT=6334
-    restart: unless-stopped
+      edgewise-backend:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # --- Ollama (Local LLM) ---
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-models:/root/.ollama
-    restart: unless-stopped
+      retries: 3
+      start_period: 5s
 
 volumes:
   edgewise-sqlite:
+    name: edgewise-sqlite
   edgewise-edge:
+    name: edgewise-edge
   edgewise-uploads:
+    name: edgewise-uploads
   edgewise-processed:
+    name: edgewise-processed
   qdrant-storage:
+    name: edgewise-qdrant-storage
   ollama-models:
+    name: edgewise-ollama-models
+
+networks:
+  edgewise-network:
+    name: edgewise-network
+    driver: bridge

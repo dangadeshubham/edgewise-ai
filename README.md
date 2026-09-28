@@ -61,25 +61,33 @@ Field technicians access equipment manuals, maintenance procedures, incident rep
 ## Quick Start
 
 ```bash
-# 1. Clone and configure
+# 1. Clone repository and configure environment
 cp .env.example .env
-# Edit .env with your settings
 
-# 2. Start all services
-docker-compose up -d
+# 2. Launch all containerized services
+docker compose up -d --build
 
-# 3. Pull an Ollama model
-docker exec -it edgewise-ai-ollama-1 ollama pull llama3.2:3b
+# 3. (Optional) Populate fixture seed data
+docker compose run --rm edgewise-backend python scripts/seed_db.py
 
-# 4. Access the application
-# Frontend: http://localhost:5173
+# 4. Verify end-to-end deployment health
+python scripts/verify_deployment.py
+
+# 5. Access the application
+# Frontend UI: http://localhost:5173
 # Backend API: http://localhost:8000/docs
-# Health: http://localhost:8000/health
+# Health Probe: http://localhost:8000/health/ready
 ```
+
+See [docs/PHASE12_DEPLOYMENT.md](docs/PHASE12_DEPLOYMENT.md) for full deployment, volume backup, disaster recovery, and production operations guides.
 
 ## Local Development
 
 ```bash
+# Option A: Local Docker Dev Mode (with hot reloading and debug ports)
+docker compose -f docker-compose.dev.yml up
+
+# Option B: Native Host Environment
 # Backend
 cd backend
 python -m venv .venv
@@ -101,24 +109,20 @@ OpenAPI documentation is auto-generated at:
 
 ## Project Status
 
-This project is under active development. See the phased implementation plan in `docs/`.
-
-### Implementation Phases
 - [x] Phase 0: Architecture & repository setup
-- [ ] Phase 1: Backend skeleton + database + health checks
-- [ ] Phase 2: Document ingestion + local storage
-- [ ] Phase 3: Qdrant Edge integration + retrieval
-- [ ] Phase 4: Ollama + RAG + citations
-- [ ] Phase 5: Offline-first behavior
-- [ ] Phase 6: Durable synchronization queue
-- [ ] Phase 7: Qdrant Server synchronization
-- [ ] Phase 8: Conflict detection/resolution
-- [ ] Phase 9: Frontend dashboard
-- [ ] Phase 10: Observability + audit
-- [ ] Phase 11: Testing
-- [ ] Phase 12: Docker + CI/CD
-- [ ] Phase 13: Security review
-- [ ] Phase 14: Performance review
+- [x] Phase 1: Backend skeleton + database + health checks
+- [x] Phase 2: Document ingestion + local storage
+- [x] Phase 3: Qdrant Edge integration + retrieval
+- [x] Phase 4: Local RAG with Ollama & ground truth validation
+- [x] Phase 5: Offline-First runtime & connectivity state machine
+- [x] Phase 6: Durable SQLite sync queue & crash recovery
+- [x] Phase 7: Real Qdrant Server & Cloud-to-Edge synchronization
+- [x] Phase 8: Real conflict detection presentation & resolution engine
+- [x] Phase 9: Production frontend SPA
+- [x] Phase 10: Production observability & immutable audit telemetry
+- [x] Phase 11: Deliberate failure-injection, hardening & resilience validation
+- [ ] Phase 13: Security review & hardening
+- [ ] Phase 14: Performance optimization & benchmark
 
 ## Qdrant Edge Notes
 

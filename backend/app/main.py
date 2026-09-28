@@ -28,7 +28,7 @@ from app.core.logging import setup_logging
 
 settings = get_settings()
 
-APP_VERSION = "0.1.0"
+from app import __version__ as APP_VERSION
 APP_START_TIME: float = 0.0
 
 

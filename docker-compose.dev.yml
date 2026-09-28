@@ -1,0 +1,91 @@
+# =============================================================================
+# EDGEWISE AI — Development Docker Compose Configuration
+# =============================================================================
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Features:
+# - Exposes internal debug ports for development (Qdrant 6333, Ollama 11434)
+# - Mounts host source code for live development reloading
+# - Relaxed health checks for interactive debugging
+# =============================================================================
+
+services:
+  # --- Central Qdrant Server ---
+  qdrant-server:
+    image: qdrant/qdrant:latest
+    container_name: edgewise-qdrant-server-dev
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./data/qdrant_storage_dev:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - edgewise-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Ollama Local LLM Runtime ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: edgewise-ollama-dev
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./data/ollama_models_dev:/root/.ollama
+    networks:
+      - edgewise-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Backend with Live Code Reload ---
+  edgewise-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: edgewise-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data/sqlite_dev:/app/data/sqlite
+      - ./data/edge_dev:/app/data/qdrant_edge
+      - ./data/uploads_dev:/app/data/uploads
+    environment:
+      - APP_VERSION=0.1.0-dev
+      - DEVICE_ID=edge-device-dev
+      - BACKEND_HOST=0.0.0.0
+      - BACKEND_PORT=8000
+      - BACKEND_LOG_LEVEL=debug
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+      - SQLITE_DATABASE_URL=sqlite+aiosqlite:////app/data/sqlite/edgewise.db
+      - EDGE_MUTABLE_SHARD_PATH=/app/data/qdrant_edge/mutable
+      - EDGE_IMMUTABLE_SHARD_PATH=/app/data/qdrant_edge/immutable
+      - QDRANT_SERVER_URL=http://qdrant-server:6333
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2:3b
+      - EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
+    networks:
+      - edgewise-dev-network
+    depends_on:
+      qdrant-server:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+networks:
+  edgewise-dev-network:
+    name: edgewise-dev-network
+    driver: bridge

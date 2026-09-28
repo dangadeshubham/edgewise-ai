@@ -110,9 +110,10 @@ class HealthService:
         conn_state = self.connectivity.state.value
         app_mode = self.connectivity.application_mode
 
+        from app import __version__
         return HealthResponse(
             status=overall_status,
-            version="0.1.0",
+            version=__version__,
             device_id=settings.device_id,
             uptime_seconds=round(uptime, 1),
             components=components,
