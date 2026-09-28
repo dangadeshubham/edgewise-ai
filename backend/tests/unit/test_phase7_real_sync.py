@@ -203,6 +203,7 @@ class TestSection26OfflineQueue:
             server_url="http://localhost:6399",
             collection_name=TEST_COLLECTION,
             timeout=1.0,
+            check_compatibility=False,
         )
 
         # 2. Create local knowledge while offline

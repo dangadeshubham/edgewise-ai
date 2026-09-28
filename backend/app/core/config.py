@@ -118,6 +118,7 @@ class Settings(BaseSettings):
     qdrant_collection_name: str = "edgewise-knowledge"
     qdrant_timeout_seconds: float = 10.0
     qdrant_verify_remote: bool = True
+    qdrant_check_compatibility: bool = True
     sync_drain_before_snapshot: bool = True
     sync_cleanup_mutable_after_refresh: bool = True
 

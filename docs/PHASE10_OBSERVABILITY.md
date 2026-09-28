@@ -129,8 +129,8 @@ Command:
 - **Passed**: 84 tests
 - **Failed**: 0
 - **Skipped**: 0
-- **Warnings**: 2 (Qdrant client-server version compatibility checks in `test_section_27_cloud_to_edge_sync`)
-- **Execution Time**: ~66.42s
+- **Warnings**: 0 (Fully resolved; see Section 7.3 for Root Cause & Verification)
+- **Execution Time**: ~64.51s
 
 #### Module Breakdown
 | Test File | Phase Focus | Test Count | Status |
@@ -141,6 +141,12 @@ Command:
 | `tests/unit/test_phase8_conflict_resolution.py` | Phase 8: Conflict Detection & Resolution | 9 | PASSED (9/9) |
 | `tests/unit/test_phase10_observability.py` | Phase 10: Observability, Metrics & Immutability | 14 | PASSED (14/14) |
 | **Total** | | **84** | **PASSED (84/84)** |
+
+### 7.3 Qdrant Client-Server Compatibility Audit
+- **Client Version**: `qdrant-client == 1.19.1`
+- **Server Version**: `qdrant-server == 1.19.1` (100% version alignment)
+- **Warning Root Cause**: `TestSection26OfflineQueue` intentionally instantiates an offline mock backend targeting closed port 6399 (`http://localhost:6399`). `qdrant-client`'s `__init__` spawns a background thread daemon to fetch `GET /` version info. Because port 6399 is closed, that background thread timed out 1 second later and raised `UserWarning: Failed to obtain server version. Unable to check client-server compatibility` while the test runner had moved into the next test.
+- **Resolution**: Added `qdrant_check_compatibility: bool = True` to configuration and allowed `QdrantServerSyncBackend` to accept explicit `check_compatibility`. For real connections in production and live tests, `check_compatibility=True` remains active. For intentionally offline/unreachable simulated endpoints, `check_compatibility=False` prevents background probes against dead ports. Regression run now executes with **0 warnings**.
 
 ### 7.2 Frontend Test Suite (Vitest)
 Command:

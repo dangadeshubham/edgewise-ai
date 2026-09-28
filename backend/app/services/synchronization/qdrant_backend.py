@@ -55,12 +55,16 @@ class QdrantServerSyncBackend(SyncBackend):
         api_key: Optional[str] = None,
         collection_name: Optional[str] = None,
         timeout: Optional[float] = None,
+        check_compatibility: Optional[bool] = None,
     ) -> None:
         self.server_url = (server_url or settings.qdrant_server_url).rstrip("/")
         self.api_key = api_key or settings.qdrant_api_key
         self.collection_name = collection_name or settings.qdrant_collection_name
         self.timeout = timeout or settings.qdrant_timeout_seconds
         self.verify_remote = settings.qdrant_verify_remote
+        self.check_compatibility = (
+            check_compatibility if check_compatibility is not None else settings.qdrant_check_compatibility
+        )
 
         # Real async and sync clients
         self.client = QdrantClient(
@@ -68,12 +72,14 @@ class QdrantServerSyncBackend(SyncBackend):
             api_key=self.api_key,
             timeout=self.timeout,
             prefer_grpc=False,
+            check_compatibility=self.check_compatibility,
         )
         self.async_client = AsyncQdrantClient(
             url=self.server_url,
             api_key=self.api_key,
             timeout=self.timeout,
             prefer_grpc=False,
+            check_compatibility=self.check_compatibility,
         )
 
     # =========================================================================
