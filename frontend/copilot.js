@@ -1,9 +1,15 @@
 /**
- * EDGEWISE AI — Edge Copilot Frontend Script
+ * EDGEWISE AI — Edge Copilot Frontend Script (Phase 5: Offline-First)
+ *
  * Connected to live FastAPI endpoints:
  *   - POST /api/copilot/query
  *   - GET  /health
+ *   - GET  /system/connectivity
  *   - GET  /api/documents/{id}
+ *
+ * Shows real system status: ONLINE / OFFLINE / DEGRADED
+ * Shows individual dependency states.
+ * Does NOT imply cloud synchronization occurred.
  */
 
 const API_BASE = window.location.origin;
@@ -20,6 +26,7 @@ const resultsArea = document.getElementById('results-area');
 const insufficientBanner = document.getElementById('insufficient-evidence-banner');
 const answerContent = document.getElementById('answer-content');
 const modelBadge = document.getElementById('model-badge');
+const modeBadge = document.getElementById('mode-badge');
 const sourcesGrid = document.getElementById('sources-grid');
 const sourceCount = document.getElementById('source-count');
 
@@ -29,11 +36,13 @@ const metricEmbed = document.getElementById('metric-embed');
 const metricRetrieval = document.getElementById('metric-retrieval');
 const metricLlm = document.getElementById('metric-llm');
 
-// Connectivity Elements
-const connectivityBadge = document.getElementById('connectivity-badge');
-const connectivityLabel = document.getElementById('connectivity-label');
-const ollamaBadge = document.getElementById('ollama-badge');
-const ollamaLabel = document.getElementById('ollama-label');
+// Status Elements
+const statusBtn = document.getElementById('system-status-btn');
+const statusDot = document.getElementById('status-dot');
+const statusLabel = document.getElementById('status-label');
+const statusPanel = document.getElementById('system-status-panel');
+const panelAppMode = document.getElementById('panel-app-mode');
+const panelLastCheck = document.getElementById('panel-last-check');
 
 // Modal Elements
 const docModal = document.getElementById('doc-modal');
@@ -41,47 +50,96 @@ const modalDocTitle = document.getElementById('modal-doc-title');
 const modalJson = document.getElementById('modal-json');
 const modalCloseBtn = document.getElementById('modal-close-btn');
 
-// --- Health Polling ---
-async function checkHealth() {
+// --- System Status Panel Toggle ---
+statusBtn.addEventListener('click', () => {
+  statusPanel.classList.toggle('hidden');
+});
+
+// Close panel when clicking outside
+document.addEventListener('click', (e) => {
+  if (!statusPanel.contains(e.target) && !statusBtn.contains(e.target)) {
+    statusPanel.classList.add('hidden');
+  }
+});
+
+// --- Connectivity Check ---
+async function checkConnectivity() {
   try {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await fetch(`${API_BASE}/system/connectivity`);
     if (res.ok) {
       const data = await res.json();
-      const deps = data.dependencies || {};
-
-      // Ollama check
-      const ollama = deps.ollama || {};
-      if (ollama.status === 'healthy' || ollama.model_available) {
-        ollamaBadge.className = 'status-indicator ollama-ready';
-        ollamaLabel.textContent = `OLLAMA (${ollama.model || 'READY'})`;
-      } else {
-        ollamaBadge.className = 'status-indicator error';
-        ollamaLabel.textContent = 'OLLAMA UNAVAILABLE';
-      }
-
-      // SQLite & Qdrant Edge check
-      const db = deps.database || {};
-      const edge = deps.qdrant_edge || {};
-      if (db.status === 'healthy' && edge.status === 'healthy') {
-        connectivityBadge.className = 'status-indicator online';
-        connectivityLabel.textContent = 'LOCAL EDGE ACTIVE';
-      } else {
-        connectivityBadge.className = 'status-indicator error';
-        connectivityLabel.textContent = 'LOCAL STORAGE ERROR';
-      }
+      updateSystemStatus(data);
     } else {
-      connectivityBadge.className = 'status-indicator error';
-      connectivityLabel.textContent = 'NODE OFFLINE';
+      setStatusOffline('API Error');
     }
   } catch (err) {
-    connectivityBadge.className = 'status-indicator error';
-    connectivityLabel.textContent = 'API DISCONNECTED';
+    setStatusOffline('API Disconnected');
   }
 }
 
-// Initial health check + periodic poll
-checkHealth();
-setInterval(checkHealth, 15000);
+function updateSystemStatus(data) {
+  const state = data.state || 'unknown';
+  const mode = data.application_mode || 'unknown';
+
+  // Update top-level indicator
+  statusDot.className = 'status-dot';
+  if (state === 'online') {
+    statusDot.classList.add('online');
+    statusLabel.textContent = 'All Systems Online';
+  } else if (state === 'offline') {
+    statusDot.classList.add('offline');
+    statusLabel.textContent = 'Local AI Available';
+  } else if (state === 'degraded') {
+    statusDot.classList.add('degraded');
+    statusLabel.textContent = 'Degraded — Check Dependencies';
+  } else {
+    statusDot.classList.add('offline');
+    statusLabel.textContent = state.toUpperCase();
+  }
+
+  // Update panel
+  panelAppMode.textContent = `Mode: ${mode.toUpperCase()}`;
+  panelAppMode.className = `panel-app-mode mode-${mode}`;
+
+  // Update individual dependencies
+  updateDependencyRow('sqlite', data.sqlite);
+  updateDependencyRow('qdrant-edge', data.qdrant_edge);
+  updateDependencyRow('ollama', data.ollama);
+  updateDependencyRow('internet', data.internet);
+  updateDependencyRow('qdrant-server', data.qdrant_server);
+
+  // Last check
+  if (data.last_check) {
+    const dt = new Date(data.last_check);
+    panelLastCheck.textContent = `Last check: ${dt.toLocaleTimeString()}`;
+  }
+}
+
+function updateDependencyRow(depId, statusStr) {
+  const el = document.getElementById(`dep-${depId}-status`);
+  if (!el) return;
+  const status = statusStr || 'unknown';
+  el.textContent = status;
+  el.className = 'dep-status';
+  if (status === 'available') {
+    el.classList.add('dep-available');
+  } else if (status === 'unavailable') {
+    el.classList.add('dep-unavailable');
+  } else if (status === 'degraded') {
+    el.classList.add('dep-degraded');
+  } else {
+    el.classList.add('dep-unknown');
+  }
+}
+
+function setStatusOffline(message) {
+  statusDot.className = 'status-dot offline';
+  statusLabel.textContent = message;
+}
+
+// Initial connectivity check + periodic poll
+checkConnectivity();
+setInterval(checkConnectivity, 15000);
 
 // --- Prompt Chips ---
 document.querySelectorAll('.chip').forEach((chip) => {
@@ -149,6 +207,15 @@ function renderResults(data) {
   // Answer & Model
   answerContent.textContent = data.answer;
   modelBadge.textContent = `model: ${data.model_used || 'edge-llm'}`;
+
+  // Mode badge — always "LOCAL AI" in Phase 5
+  if (data.offline_mode) {
+    modeBadge.textContent = 'LOCAL AI';
+    modeBadge.className = 'badge-mode mode-local';
+  } else {
+    modeBadge.textContent = 'LOCAL AI';
+    modeBadge.className = 'badge-mode mode-local';
+  }
 
   // Metrics
   metricTotal.textContent = `${Math.round(data.total_latency_ms)}ms`;

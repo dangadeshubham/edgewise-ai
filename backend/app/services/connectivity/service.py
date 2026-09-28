@@ -1,108 +1,65 @@
 """
-EDGEWISE AI — Connectivity Service
+EDGEWISE AI — Connectivity Service (Phase 5)
 
-Manages and reports connectivity state for all external dependencies.
-Distinguishes between different failure modes.
+Refactored to use the ConnectivityManager state machine.
+Provides the API-facing connectivity status with accurate per-dependency state.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
-import httpx
+import structlog
 
-from app.core.config import ConnectivityState, get_settings
-from app.schemas.api import ConnectivityResponse
+from app.core.config import get_settings
+from app.services.connectivity.manager import (
+    ConnectivityManager,
+    ConnectivityState,
+    DependencyName,
+    DependencyStatus,
+    get_connectivity_manager,
+)
 
 settings = get_settings()
+logger = structlog.get_logger("edgewise.connectivity")
 
 
 class ConnectivityService:
-    """Checks and reports connectivity to external services."""
+    """
+    Checks and reports connectivity to all dependencies.
+    Delegates to ConnectivityManager for actual probing and state derivation.
+    """
 
-    def __init__(self):
-        self._last_check: Optional[datetime] = None
+    def __init__(self) -> None:
+        self.manager: ConnectivityManager = get_connectivity_manager()
 
-    async def get_connectivity_status(self) -> ConnectivityResponse:
-        """Check all external dependencies and return aggregate status."""
-        internet = await self._check_internet()
-        qdrant_cloud = await self._check_qdrant_cloud()
-        ollama = await self._check_ollama()
-        local_db = await self._check_local_database()
-        edge_shard = await self._check_edge_shard()
+    async def get_connectivity_status(self) -> dict[str, Any]:
+        """Check all external dependencies and return accurate aggregate status."""
+        await self.manager.check_all()
+        return self.manager.get_status()
 
-        self._last_check = datetime.now(timezone.utc)
+    async def check_local_dependencies(self) -> dict[str, Any]:
+        """Check only local dependencies for fast health checks."""
+        await self.manager.check_local_only()
+        return {
+            "state": self.manager.state.value,
+            "application_mode": self.manager.application_mode,
+            "sqlite": self.manager.get_dependency_status(DependencyName.SQLITE).status.value,
+            "qdrant_edge": self.manager.get_dependency_status(DependencyName.QDRANT_EDGE).status.value,
+            "ollama": self.manager.get_dependency_status(DependencyName.OLLAMA).status.value,
+            "local_operational": self.manager.is_local_operational(),
+            "copilot_operational": self.manager.is_copilot_operational(),
+        }
 
-        # Determine overall state
-        if not local_db or not edge_shard:
-            state = ConnectivityState.OFFLINE
-        elif not internet:
-            state = ConnectivityState.OFFLINE
-        elif not qdrant_cloud or not ollama:
-            state = ConnectivityState.DEGRADED
-        else:
-            state = ConnectivityState.ONLINE
+    def get_cached_status(self) -> dict[str, Any]:
+        """Return cached status without re-probing (for high-frequency callers)."""
+        return self.manager.get_status()
 
-        return ConnectivityResponse(
-            state=state.value,
-            internet_available=internet,
-            qdrant_cloud_available=qdrant_cloud,
-            ollama_available=ollama,
-            local_database_available=local_db,
-            edge_shard_available=edge_shard,
-            last_check=self._last_check,
-        )
+    def is_local_operational(self) -> bool:
+        """Quick check if local stack is operational."""
+        return self.manager.is_local_operational()
 
-    async def _check_internet(self) -> bool:
-        """Check basic internet connectivity."""
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                resp = await client.get("https://httpbin.org/status/200")
-                return resp.status_code == 200
-        except Exception:
-            return False
-
-    async def _check_qdrant_cloud(self) -> bool:
-        """Check if Qdrant Server/Cloud is reachable."""
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                headers = {}
-                if settings.qdrant_api_key:
-                    headers["api-key"] = settings.qdrant_api_key
-                resp = await client.get(
-                    f"{settings.qdrant_server_url}/healthz",
-                    headers=headers,
-                )
-                return resp.status_code == 200
-        except Exception:
-            return False
-
-    async def _check_ollama(self) -> bool:
-        """Check if Ollama is reachable."""
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                resp = await client.get(f"{settings.ollama_base_url}/api/tags")
-                return resp.status_code == 200
-        except Exception:
-            return False
-
-    async def _check_local_database(self) -> bool:
-        """Check if SQLite is accessible."""
-        try:
-            from app.core.database import async_session_factory
-            from sqlalchemy import text
-            async with async_session_factory() as session:
-                await session.execute(text("SELECT 1"))
-                return True
-        except Exception:
-            return False
-
-    async def _check_edge_shard(self) -> bool:
-        """Check if Edge shard is loaded, accessible, and queryable."""
-        try:
-            from app.services.edge_memory import get_edge_memory_service
-            edge = get_edge_memory_service()
-            return edge.is_healthy("mutable")
-        except Exception:
-            return False
+    def is_copilot_operational(self) -> bool:
+        """Quick check if Copilot can execute."""
+        return self.manager.is_copilot_operational()

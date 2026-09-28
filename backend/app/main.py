@@ -46,6 +46,19 @@ async def lifespan(app: FastAPI):
     # Ensure required data directories exist
     settings.ensure_directories()
 
+    # Initialize connectivity manager and run initial check
+    from app.services.connectivity.manager import get_connectivity_manager
+    connectivity = get_connectivity_manager()
+    try:
+        initial_state = await connectivity.check_all()
+        await log.ainfo(
+            "connectivity_initial_check",
+            state=initial_state.value,
+            mode=connectivity.application_mode,
+        )
+    except Exception as e:
+        await log.awarning("connectivity_initial_check_failed", error=str(e))
+
     # Register local development device ONLY if explicitly configured
     if settings.auto_register_local_device:
         from app.core.database import async_session_factory
@@ -73,17 +86,52 @@ async def lifespan(app: FastAPI):
                 await session.commit()
                 await log.ainfo("local_device_registered", device_id=dev_id)
 
+    # Phase 6: Recover abandoned sync jobs on startup
+    try:
+        from app.core.database import async_session_factory
+        from app.services.synchronization.queue_service import SyncQueueService
+        async with async_session_factory() as session:
+            queue_svc = SyncQueueService(session)
+            recovered = await queue_svc.recover_abandoned()
+            if recovered:
+                await session.commit()
+                await log.ainfo("abandoned_sync_jobs_recovered_on_startup", count=len(recovered))
+    except Exception as e:
+        await log.awarning("sync_recovery_on_startup_failed", error=str(e))
+
+    # Start background connectivity polling
+    import asyncio
+
+    async def _connectivity_poll():
+        """Background task: periodic connectivity check."""
+        while True:
+            try:
+                await asyncio.sleep(30)
+                await connectivity.check_all()
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                pass
+
+    poll_task = asyncio.create_task(_connectivity_poll())
+
     await log.ainfo(
         "edgewise_started",
         device_id=settings.device_id,
         device_name=settings.device_name,
         site=settings.device_site,
         version=APP_VERSION,
+        connectivity=connectivity.application_mode,
     )
 
     yield  # Application running
 
     # Shutdown
+    poll_task.cancel()
+    try:
+        await poll_task
+    except asyncio.CancelledError:
+        pass
     await close_db()
     await log.ainfo("edgewise_shutdown")
 

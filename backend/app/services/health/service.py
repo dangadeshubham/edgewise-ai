@@ -1,5 +1,5 @@
 """
-EDGEWISE AI — Health Service
+EDGEWISE AI — Health Service (Phase 5)
 
 Comprehensive inspection of real system dependencies:
 - SQLite database
@@ -7,9 +7,13 @@ Comprehensive inspection of real system dependencies:
 - Ollama Local LLM
 - Edge Shard storage
 - Internet connectivity
+- Embedding model
 
 Dependencies are actually probed over network/disk/DB.
 No component is marked healthy just because configuration exists.
+
+Phase 5 addition: integrates with ConnectivityManager for state machine,
+and reflects accurate offline-first status.
 """
 
 from __future__ import annotations
@@ -29,6 +33,12 @@ from app.schemas.api import (
     HealthResponse,
     ReadinessResponse,
 )
+from app.services.connectivity.manager import (
+    ConnectivityManager,
+    DependencyName,
+    DependencyStatus,
+    get_connectivity_manager,
+)
 
 settings = get_settings()
 
@@ -38,6 +48,7 @@ class HealthService:
 
     def __init__(self, http_timeout: float = 2.0) -> None:
         self.http_timeout = http_timeout
+        self.connectivity = get_connectivity_manager()
 
     async def check_health(self, db: AsyncSession) -> HealthResponse:
         """Run comprehensive health checks on all dependencies."""
@@ -67,9 +78,15 @@ class HealthService:
         internet_health = await self._check_internet()
         components.append(internet_health)
 
-        # Determine overall status
+        # Determine overall status using offline-first logic:
+        # - If SQLite is down → unhealthy (critical)
+        # - If Edge is down → degraded (local search impaired)
+        # - If internet/Qdrant Server/Ollama down → degraded (but local can work)
+        # - All up → healthy
         if db_health.status != "healthy":
             overall_status = "unhealthy"
+        elif edge_health.status != "healthy":
+            overall_status = "degraded"
         elif any(c.status != "healthy" for c in components):
             overall_status = "degraded"
         else:
@@ -77,6 +94,10 @@ class HealthService:
 
         from app.main import APP_START_TIME
         uptime = time.time() - APP_START_TIME if APP_START_TIME > 0 else 0.0
+
+        # Add connectivity manager summary
+        conn_state = self.connectivity.state.value
+        app_mode = self.connectivity.application_mode
 
         return HealthResponse(
             status=overall_status,
@@ -94,6 +115,9 @@ class HealthService:
         - SQLite database operational
         - Qdrant Edge shard loaded and queryable
         - Embedding service available with valid dimension
+
+        Note: Internet/Qdrant Server/Ollama are NOT required for readiness.
+        The application is offline-first and ready without cloud dependencies.
         """
         checks: dict[str, bool] = {}
         try:
@@ -155,24 +179,24 @@ class HealthService:
                 latency = (time.perf_counter() - start) * 1000
                 if resp.status_code == 200:
                     return ComponentHealth(
-                        name="qdrant",
+                        name="qdrant_server",
                         status="healthy",
                         latency_ms=round(latency, 2),
-                        message="Qdrant responding",
+                        message="Qdrant Server responding",
                     )
                 return ComponentHealth(
-                    name="qdrant",
+                    name="qdrant_server",
                     status="unhealthy",
                     latency_ms=round(latency, 2),
-                    message=f"Qdrant returned HTTP {resp.status_code}",
+                    message=f"Qdrant Server returned HTTP {resp.status_code}",
                 )
         except Exception:
             latency = (time.perf_counter() - start) * 1000
             return ComponentHealth(
-                name="qdrant",
+                name="qdrant_server",
                 status="unhealthy",
                 latency_ms=round(latency, 2),
-                message="Qdrant unavailable: connection failed",
+                message="Qdrant Server unavailable: not required for offline operation",
             )
 
     async def _check_ollama(self) -> ComponentHealth:
@@ -231,7 +255,7 @@ class HealthService:
             if not edge.mutable_dir.exists():
                 latency = (time.perf_counter() - start) * 1000
                 return ComponentHealth(
-                    name="edge",
+                    name="qdrant_edge",
                     status="unhealthy",
                     latency_ms=round(latency, 2),
                     message="EDGE_UNAVAILABLE: mutable shard directory does not exist",
@@ -240,14 +264,14 @@ class HealthService:
             if info.get("status") != "ready":
                 latency = (time.perf_counter() - start) * 1000
                 return ComponentHealth(
-                    name="edge",
+                    name="qdrant_edge",
                     status="unhealthy",
                     latency_ms=round(latency, 2),
                     message=f"EDGE_UNAVAILABLE: shard status {info.get('status')}",
                 )
             latency = (time.perf_counter() - start) * 1000
             return ComponentHealth(
-                name="edge",
+                name="qdrant_edge",
                 status="healthy",
                 latency_ms=round(latency, 2),
                 message=f"Edge shard ready ({info.get('points_count', 0)} points)",
@@ -255,7 +279,7 @@ class HealthService:
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000
             return ComponentHealth(
-                name="edge",
+                name="qdrant_edge",
                 status="unhealthy",
                 latency_ms=round(latency, 2),
                 message=f"EDGE_UNAVAILABLE: {type(e).__name__}",
@@ -325,5 +349,5 @@ class HealthService:
                 name="internet",
                 status="unhealthy",
                 latency_ms=round(latency, 2),
-                message="Internet unavailable: offline",
+                message="Internet unavailable: offline (local AI operational)",
             )

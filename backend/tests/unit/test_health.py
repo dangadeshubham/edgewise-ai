@@ -81,13 +81,13 @@ async def test_comprehensive_health_inspects_dependencies(client: AsyncClient):
     assert components["sqlite"]["latency_ms"] is not None
 
     # Other dependencies should be present and accurately probed
-    assert "qdrant" in components
+    assert "qdrant_server" in components or "qdrant" in components
     assert "ollama" in components
-    assert "edge" in components
+    assert "qdrant_edge" in components or "edge" in components
     assert "internet" in components
 
     # Distinguishes failure: if ollama/qdrant is not running locally, it must not be marked healthy
-    for name in ["qdrant", "ollama", "edge", "internet"]:
+    for name in [k for k in ["qdrant_server", "qdrant", "ollama", "qdrant_edge", "edge", "internet"] if k in components]:
         assert components[name]["status"] in ["healthy", "unhealthy", "degraded"]
 
 

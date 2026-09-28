@@ -624,3 +624,194 @@ body {
     text-align: center;
   }
 }
+
+/* =============================================================================
+   Phase 5: System Status Indicator & Dependency Panel
+   ============================================================================= */
+
+.system-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.system-status-btn:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-tertiary);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+
+.status-dot.online {
+  background: var(--accent-emerald);
+  box-shadow: 0 0 8px var(--accent-emerald-glow);
+  animation: pulse-green 2s infinite;
+}
+
+.status-dot.offline {
+  background: var(--accent-amber);
+  box-shadow: 0 0 8px var(--accent-amber-glow);
+  animation: pulse-amber 2s infinite;
+}
+
+.status-dot.degraded {
+  background: var(--accent-rose);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.3);
+  animation: pulse-rose 2s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 4px rgba(16, 185, 129, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.6); }
+}
+
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 4px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.6); }
+}
+
+@keyframes pulse-rose {
+  0%, 100% { box-shadow: 0 0 4px rgba(244, 63, 94, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); }
+}
+
+.status-label {
+  font-size: 0.82rem;
+}
+
+/* --- System Status Panel --- */
+.system-status-panel {
+  position: absolute;
+  top: 68px;
+  right: 24px;
+  z-index: 100;
+  width: 320px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+  animation: panel-slide 0.2s ease;
+}
+
+@keyframes panel-slide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.status-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.status-panel-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.panel-app-mode {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+}
+
+.mode-online { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+.mode-offline { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+.mode-degraded { background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); }
+.mode-syncing { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid rgba(56, 189, 248, 0.3); }
+
+.status-panel-grid {
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dep-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.dep-row:last-child {
+  border-bottom: none;
+}
+
+.dep-icon {
+  font-size: 1rem;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dep-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.dep-status {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dep-available { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+.dep-unavailable { background: rgba(244, 63, 94, 0.12); color: var(--accent-rose); }
+.dep-degraded { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+.dep-unknown { background: rgba(148, 163, 184, 0.1); color: var(--text-sub); }
+
+.status-panel-footer {
+  padding: 10px 18px;
+  border-top: 1px solid var(--border-color);
+}
+
+.panel-timestamp {
+  font-size: 0.72rem;
+  color: var(--text-sub);
+  font-family: var(--font-mono);
+}
+
+/* --- Mode Badge (on answer card) --- */
+.badge-mode {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+}
+
+.mode-local {
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}

@@ -74,14 +74,45 @@ class LivenessResponse(BaseModel):
 # Connectivity
 # =============================================================================
 
+class DependencyDetail(BaseModel):
+    """Per-dependency status detail."""
+    name: str
+    status: str  # available, unavailable, degraded, unknown
+    last_check: Optional[str] = None
+    last_available: Optional[str] = None
+    latency_ms: Optional[float] = None
+    message: Optional[str] = None
+    consecutive_failures: int = 0
+
+
+class ConnectivityEventResponse(BaseModel):
+    """A recorded connectivity state change event."""
+    event_type: str
+    dependency: Optional[str] = None
+    old_status: Optional[str] = None
+    new_status: str
+    message: str
+    timestamp: str
+
+
 class ConnectivityResponse(BaseModel):
-    state: str  # online, offline, degraded, syncing
-    internet_available: bool
-    qdrant_cloud_available: bool
-    ollama_available: bool
-    local_database_available: bool
-    edge_shard_available: bool
-    last_check: Optional[datetime] = None
+    """Phase 5 connectivity status with independent per-dependency tracking."""
+    state: str  # online, offline, degraded, sync_pending, syncing
+    application_mode: str  # online, offline, degraded, syncing
+    internet: str  # available, unavailable, unknown
+    qdrant_edge: str  # available, unavailable, unknown
+    ollama: str  # available, unavailable, degraded, unknown
+    qdrant_server: str  # available, unavailable, unknown
+    sqlite: str  # available, unavailable, unknown
+    dependencies: Optional[dict[str, DependencyDetail]] = None
+    last_check: Optional[str] = None
+    recent_events: Optional[list[ConnectivityEventResponse]] = None
+    # Backwards compat (deprecated)
+    internet_available: Optional[bool] = None
+    qdrant_cloud_available: Optional[bool] = None
+    ollama_available: Optional[bool] = None
+    local_database_available: Optional[bool] = None
+    edge_shard_available: Optional[bool] = None
 
 
 # =============================================================================
@@ -277,6 +308,14 @@ class SyncStatusResponse(BaseModel):
     last_sync: Optional[datetime] = None
     next_retry: Optional[datetime] = None
     current_device_id: str
+    # Phase 6 queue observability extensions
+    ready_pending_count: Optional[int] = 0
+    cancelled_count: Optional[int] = 0
+    retrying_count: Optional[int] = 0
+    oldest_pending_at: Optional[datetime] = None
+    latest_successful_sync: Optional[datetime] = None
+    total_attempts: Optional[int] = 0
+    average_attempt_duration_ms: Optional[float] = None
 
 
 class SyncRunResponse(BaseModel):
@@ -290,14 +329,15 @@ class SyncRunResponse(BaseModel):
 
 class SyncHistoryItem(BaseModel):
     id: str
-    record_type: str
-    record_id: str
-    operation: str
+    sync_item_id: Optional[str] = None
+    attempt_number: Optional[int] = 1
     status: str
-    retry_count: int
-    last_error: Optional[str] = None
-    created_at: datetime
+    error_category: Optional[str] = None
+    error_message: Optional[str] = None
+    duration_ms: Optional[float] = None
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    attempted_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -314,8 +354,13 @@ class SyncQueueItem(BaseModel):
     status: str
     priority: int
     retry_count: int
+    max_retries: Optional[int] = 5
     next_retry_at: Optional[datetime] = None
+    revision: Optional[int] = 1
+    content_hash: Optional[str] = None
+    last_error: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

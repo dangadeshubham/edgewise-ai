@@ -40,7 +40,9 @@ class ConnectivityState(str, Enum):
     ONLINE = "online"
     OFFLINE = "offline"
     DEGRADED = "degraded"
+    SYNC_PENDING = "sync_pending"
     SYNCING = "syncing"
+
 
 
 class ProcessingStatus(str, Enum):
@@ -136,10 +138,15 @@ class Settings(BaseSettings):
     chunk_size: int = 512
     chunk_overlap: int = 64
 
-    # --- Synchronization ---
-    sync_batch_size: int = 50
-    sync_retry_max: int = 5
-    sync_retry_base_delay_seconds: float = 2.0
+    # --- Synchronization (Phase 6 Durable Queue) ---
+    sync_batch_size: int = 20
+    sync_max_retries: int = 5
+    sync_retry_max: int = 5  # Backward compat alias
+    sync_base_backoff_seconds: float = 2.0
+    sync_retry_base_delay_seconds: float = 2.0  # Backward compat alias
+    sync_max_backoff_seconds: float = 300.0
+    sync_poll_interval_seconds: float = 5.0
+    sync_processing_timeout_seconds: float = 300.0  # Abandoned PROCESSING job recovery
     sync_interval_seconds: int = 300
 
     # --- Data Placement ---

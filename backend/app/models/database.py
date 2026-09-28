@@ -262,6 +262,11 @@ class SyncItem(Base):
 
     payload_json = Column(Text, nullable=True)  # Serialized point data for Qdrant upsert
 
+    # Phase 6 additions: durable queue revisioning & crash recovery
+    revision = Column(Integer, nullable=True, default=1)
+    content_hash = Column(String(128), nullable=True)
+    processing_started_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
     completed_at = Column(DateTime, nullable=True)
@@ -286,9 +291,13 @@ class SyncAttempt(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     sync_item_id = Column(String(36), ForeignKey("sync_items.id"), nullable=False)
 
+    attempt_number = Column(Integer, nullable=False, default=1)
     status = Column(String(32), nullable=False)  # success, failed, conflict
-    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
     duration_ms = Column(Float, nullable=True)
+    error_category = Column(String(64), nullable=True)
+    error_message = Column(Text, nullable=True)
 
     attempted_at = Column(DateTime, default=utcnow)
 

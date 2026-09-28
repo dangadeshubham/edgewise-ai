@@ -1,11 +1,11 @@
 """
-EDGEWISE AI — Health & System Endpoints
+EDGEWISE AI — Health & System Endpoints (Phase 5)
 
 Top-level system observability endpoints:
-  GET /health
-  GET /health/ready
-  GET /health/live
-  GET /system/connectivity
+  GET /health          — comprehensive health with per-dependency status
+  GET /health/ready    — Kubernetes readiness probe
+  GET /health/live     — Kubernetes liveness probe
+  GET /system/connectivity — detailed connectivity state for all dependencies
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from app.schemas.api import (
     LivenessResponse,
     ReadinessResponse,
 )
+from app.services.connectivity.manager import get_connectivity_manager
 from app.services.connectivity.service import ConnectivityService
 from app.services.health.service import HealthService
 
@@ -52,8 +53,24 @@ async def liveness_check() -> LivenessResponse:
     return LivenessResponse(alive=True)
 
 
-@router.get("/system/connectivity", response_model=ConnectivityResponse, tags=["System"])
-async def connectivity_status() -> ConnectivityResponse:
-    """Get detailed connectivity state for all external dependencies."""
+@router.get("/system/connectivity", tags=["System"])
+async def connectivity_status():
+    """
+    Get detailed connectivity state for all external dependencies.
+    Returns independent per-dependency status (not simple booleans).
+
+    Example response:
+    {
+      "state": "offline",
+      "application_mode": "offline",
+      "internet": "unavailable",
+      "qdrant_edge": "available",
+      "ollama": "available",
+      "qdrant_server": "unavailable",
+      "sqlite": "available",
+      "dependencies": { ... },
+      "recent_events": [ ... ]
+    }
+    """
     service = ConnectivityService()
     return await service.get_connectivity_status()

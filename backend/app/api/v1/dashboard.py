@@ -81,8 +81,9 @@ async def get_dashboard_metrics(
     last_sync = await sync_repo.get_last_successful_sync_time()
     open_conflicts = await conflict_repo.count_open()
 
+    conn_state = conn_status.get("state") if isinstance(conn_status, dict) else getattr(conn_status, "state", "unknown")
     return DashboardMetrics(
-        connectivity_state=conn_status.state,
+        connectivity_state=conn_state,
         local_memory_records=memory_count,
         local_vector_count=embedded_chunks,
         cloud_record_count=cloud_records,

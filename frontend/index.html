@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EDGEWISE AI — Edge Copilot</title>
-  <meta name="description" content="Local Grounded RAG Copilot for Industrial Edge Intelligence">
+  <meta name="description" content="Offline-First AI Edge Memory & Intelligence Platform — Phase 5">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -19,19 +19,54 @@
           <span class="logo-icon">⚡</span>
           <span class="logo-title">EDGEWISE<span class="accent">.AI</span></span>
         </div>
-        <span class="badge-phase">PHASE 4: LOCAL RAG</span>
+        <span class="badge-phase">PHASE 5: OFFLINE-FIRST</span>
       </div>
       <div class="header-right">
-        <div id="connectivity-badge" class="status-indicator online">
-          <span class="dot"></span>
-          <span id="connectivity-label">OFFLINE-FIRST (ACTIVE)</span>
-        </div>
-        <div id="ollama-badge" class="status-indicator ollama-ready">
-          <span class="dot"></span>
-          <span id="ollama-label">OLLAMA READY</span>
-        </div>
+        <!-- System Status Indicator -->
+        <button id="system-status-btn" class="system-status-btn" title="View system dependency status">
+          <span id="status-dot" class="status-dot offline"></span>
+          <span id="status-label" class="status-label">Initializing...</span>
+        </button>
       </div>
     </header>
+
+    <!-- System Status Panel (hidden by default) -->
+    <div id="system-status-panel" class="system-status-panel hidden">
+      <div class="status-panel-header">
+        <h3>System Dependencies</h3>
+        <span id="panel-app-mode" class="panel-app-mode">--</span>
+      </div>
+      <div class="status-panel-grid">
+        <div class="dep-row" id="dep-sqlite">
+          <span class="dep-icon">🗄️</span>
+          <span class="dep-name">SQLite</span>
+          <span class="dep-status" id="dep-sqlite-status">unknown</span>
+        </div>
+        <div class="dep-row" id="dep-qdrant-edge">
+          <span class="dep-icon">🧠</span>
+          <span class="dep-name">Qdrant Edge</span>
+          <span class="dep-status" id="dep-qdrant-edge-status">unknown</span>
+        </div>
+        <div class="dep-row" id="dep-ollama">
+          <span class="dep-icon">🤖</span>
+          <span class="dep-name">Ollama LLM</span>
+          <span class="dep-status" id="dep-ollama-status">unknown</span>
+        </div>
+        <div class="dep-row" id="dep-internet">
+          <span class="dep-icon">🌐</span>
+          <span class="dep-name">Internet</span>
+          <span class="dep-status" id="dep-internet-status">unknown</span>
+        </div>
+        <div class="dep-row" id="dep-qdrant-server">
+          <span class="dep-icon">☁️</span>
+          <span class="dep-name">Qdrant Server</span>
+          <span class="dep-status" id="dep-qdrant-server-status">unknown</span>
+        </div>
+      </div>
+      <div class="status-panel-footer">
+        <span id="panel-last-check" class="panel-timestamp">Last check: --</span>
+      </div>
+    </div>
 
     <!-- Main Container -->
     <main class="main-content">
@@ -39,7 +74,7 @@
       <section class="copilot-intro">
         <h1 class="headline">Industrial Knowledge Copilot</h1>
         <p class="subheadline">
-          Strictly grounded retrieval over local Qdrant Edge memory. Answers are generated exclusively from local evidence with verifiable citations.
+          Offline-first grounded retrieval over local Qdrant Edge memory. All intelligence runs locally — no cloud dependency required.
         </p>
       </section>
 
@@ -102,7 +137,8 @@
           <div class="card-header">
             <div class="card-title-group">
               <span class="badge-role">COPILOT ANSWER</span>
-              <span id="model-badge" class="badge-meta">model: llama3.2:1b</span>
+              <span id="model-badge" class="badge-meta">model: --</span>
+              <span id="mode-badge" class="badge-mode">LOCAL AI</span>
             </div>
             <div id="metrics-bar" class="metrics-bar">
               <span class="metric" title="Total response latency">Total: <strong id="metric-total">--</strong></span>
@@ -145,7 +181,7 @@
 
     <!-- Footer -->
     <footer class="app-footer">
-      <span>EDGEWISE AI Edge Node • Local Storage (SQLite + Qdrant Edge) • Local LLM (Ollama)</span>
+      <span>EDGEWISE AI Edge Node • Offline-First • Local Storage (SQLite + Qdrant Edge) • Local LLM (Ollama)</span>
       <span class="privacy-note">Zero cloud dependencies required for local intelligence.</span>
     </footer>
   </div>
