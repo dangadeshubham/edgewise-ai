@@ -249,11 +249,11 @@ class DeploymentVerifier:
                 log_info(f"Answer snippet: {answer[:120]}...")
                 self.results["copilot_rag"] = True
             else:
-                log_warn(f"Copilot RAG query returned HTTP {r.status_code} (LLM may be offline/mocked)")
-                self.results["copilot_rag"] = True
+                log_fail(f"Copilot RAG query returned HTTP {r.status_code}: {r.text}")
+                self.results["copilot_rag"] = False
         except Exception as e:
-            log_warn(f"Copilot RAG query error: {e}")
-            self.results["copilot_rag"] = True
+            log_fail("Copilot RAG query error", str(e))
+            self.results["copilot_rag"] = False
 
     def verify_sync_cycle(self):
         sync_run_url = f"{self.backend_url}/api/sync/run"
