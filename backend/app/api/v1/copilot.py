@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.schemas.api import (
     CopilotQueryRequest,
     CopilotQueryResponse,
@@ -30,7 +31,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-@router.post("/query", response_model=CopilotQueryResponse)
+@router.post("/query", response_model=CopilotQueryResponse, dependencies=[Depends(rate_limit("copilot"))])
 async def copilot_query(
     request: CopilotQueryRequest,
     db: AsyncSession = Depends(get_db),
@@ -133,8 +134,8 @@ async def copilot_query(
             detail=f"OLLAMA_GENERATION_ERROR: {e}",
         )
     except Exception as exc:
-        logger.error("copilot_query_failed", question=request.question[:100], error=str(exc))
+        logger.error("copilot_query_failed", question=request.question[:100], error=str(exc), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Copilot query failed: {type(exc).__name__}: {str(exc)[:200]}",
+            detail="Copilot query processing failed due to an internal server error.",
         )

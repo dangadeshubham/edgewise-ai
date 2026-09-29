@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -119,7 +120,12 @@ class IngestionService:
         upload_dir.mkdir(parents=True, exist_ok=True)
 
         stored_filename = f"{document_id}_{sanitized_filename}"
-        disk_path = upload_dir / stored_filename
+        disk_path = (upload_dir / stored_filename).resolve()
+        if not str(disk_path).startswith(str(upload_dir.resolve())):
+            raise HTTPException(
+                status_code=422,
+                detail="Security violation: storage path escapes configured upload directory.",
+            )
         with open(disk_path, "wb") as f:
             f.write(content)
 

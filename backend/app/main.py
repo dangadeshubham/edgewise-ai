@@ -181,20 +181,21 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# --- CORS ---
+# --- CORS (Hardened) ---
+is_wildcard_cors = "*" in settings.cors_origins_list
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=not is_wildcard_cors,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID", "Accept", "Origin", "X-API-Key"],
 )
 
 
-# --- Request ID & Telemetry Middleware ---
+# --- Request ID, Telemetry & HTTP Security Headers Middleware ---
 @app.middleware("http")
-async def add_request_id(request: Request, call_next) -> Response:
-    """Attach a unique request ID to every request and collect latency metrics."""
+async def add_security_and_telemetry_headers(request: Request, call_next) -> Response:
+    """Attach unique request ID, security defense headers, and latency metrics."""
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
     request.state.request_id = request_id
     structlog.contextvars.clear_contextvars()
@@ -207,8 +208,24 @@ async def add_request_id(request: Request, call_next) -> Response:
     duration_s = time.perf_counter() - start
     duration_ms = duration_s * 1000
 
+    # Tracing & Performance Headers
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Response-Time-Ms"] = f"{duration_ms:.1f}"
+
+    # HTTP Security Defense Headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 http://localhost:5173; "
+        "frame-ancestors 'none';"
+    )
 
     # Collect telemetry metrics
     metrics = get_metrics_registry()
@@ -339,9 +356,9 @@ app.include_router(api_router)
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 
-frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
-if frontend_dir.exists():
-    app.mount("/copilot", StaticFiles(directory=str(frontend_dir), html=True), name="copilot")
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if frontend_dist.is_dir():
+    app.mount("/copilot", StaticFiles(directory=str(frontend_dist), html=True), name="copilot")
 
 
 @app.get("/", tags=["Root"])

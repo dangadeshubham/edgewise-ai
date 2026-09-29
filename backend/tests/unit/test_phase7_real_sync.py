@@ -587,7 +587,9 @@ class TestSyncAPIE2E:
     """Test /api/sync/* endpoints with live Qdrant Server."""
 
     @pytest.mark.asyncio
-    async def test_api_sync_status_reports_real_cloud_status(self, client: AsyncClient):
+    async def test_api_sync_status_reports_real_cloud_status(
+        self, client: AsyncClient, qdrant_backend: QdrantServerSyncBackend
+    ):
         response = await client.get("/api/sync/status")
         assert response.status_code == 200
         data = response.json()
@@ -595,7 +597,9 @@ class TestSyncAPIE2E:
         assert data["qdrant_server_url"] == settings.qdrant_server_url
 
     @pytest.mark.asyncio
-    async def test_api_sync_run_executes_real_sync(self, client: AsyncClient):
+    async def test_api_sync_run_executes_real_sync(
+        self, client: AsyncClient, qdrant_backend: QdrantServerSyncBackend
+    ):
         response = await client.post("/api/sync/run?batch_size=10&apply_cloud_to_edge=true")
         assert response.status_code == 200
         data = response.json()

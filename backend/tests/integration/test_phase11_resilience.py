@@ -122,8 +122,9 @@ async def p11_db(tmp_path: Path) -> AsyncGenerator[AsyncSession, None]:
 async def p11_backend() -> AsyncGenerator[QdrantServerSyncBackend, None]:
     """Direct connection to real Qdrant Server with isolated test collection."""
     backend = QdrantServerSyncBackend(collection_name=TEST_COLLECTION, check_compatibility=True)
-    if await backend.health_check():
-        await backend.ensure_collection_exists()
+    if not await backend.health_check():
+        pytest.skip(f"Live Qdrant Server not reachable for Phase 11 resilience tests on {settings.qdrant_server_url}")
+    await backend.ensure_collection_exists()
     yield backend
 
 

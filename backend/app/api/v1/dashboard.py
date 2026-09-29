@@ -102,7 +102,7 @@ async def get_dashboard_metrics(
         edge_immutable_points=immutable_points,
         embedded_chunks=embedded_chunks,
         unembedded_chunks=unembedded_chunks,
-        edge_storage_path=str(edge_service.mutable_dir),
+        edge_storage_path="data/qdrant_edge/mutable",
         edge_shard_available=edge_available,
         edge_last_flush=last_flush,
     )

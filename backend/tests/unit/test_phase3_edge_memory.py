@@ -469,7 +469,7 @@ async def test_19_health_integration(client: AsyncClient):
     assert h_resp.status_code == 200
     comp_names = [c["name"] for c in h_resp.json()["components"]]
     assert "sqlite" in comp_names
-    assert "edge" in comp_names
+    assert "edge" in comp_names or "qdrant_edge" in comp_names
     assert "embedding" in comp_names
 
     # /health/ready

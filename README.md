@@ -107,6 +107,30 @@ OpenAPI documentation is auto-generated at:
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## Security & Trust Architecture (Phase 13)
+
+For detailed security review, threat modeling, and dependency audits, see:
+- [docs/SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md)
+- [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+- [docs/DEPENDENCY_SECURITY.md](docs/DEPENDENCY_SECURITY.md)
+
+### Security Model & Trust Boundaries
+- **Deployment Archetype**: Single-tenant Edge Appliance / Field Terminal.
+- **Trust Boundary**: Local Edge Network (`LOCAL_EDGE_TRUSTED`). Operations originating within the local field terminal perimeter are executed with local operator privileges.
+- **Authentication Status**: Endpoints operate in unauthenticated appliance mode by default. A formal authorization interface (`backend/app/core/auth.py`) is provided with API key and permission enforcement hooks. Multi-user enterprise RBAC is deferred to Phase 14+.
+- **Secrets Management**: Zero credentials or tokens in tracked source. Environment variables drive configuration via `.env` (ignored by git). Production logs redact secrets via structlog filters. Frontend distribution bundles contain zero backend credentials.
+- **Network Isolation**: Production Docker Compose publishes **only** necessary host ports (Backend `8000`, Frontend `5173`). Internal services (Qdrant Server `6333`, Ollama `11434`) are isolated to the internal Docker bridge network without host port publishing.
+- **Defense in Depth**:
+  - In-process sliding-window rate limiting on high-risk endpoints (upload, search, copilot, sync, reindex).
+  - Strict file upload validation: path traversal neutralization (URL-unquoting), 255-character filename ceiling, OpenXML decompression bomb rejection, JSON nesting depth bounds.
+  - HTTP security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, tailored Content-Security-Policy (CSP).
+  - Non-root container runtime (`appuser:10001`) with runtime compilers purged.
+  - Parameterized SQLite access with append-only audit trail immutability triggers.
+
+### Known Risks & Deployment Recommendations
+- **Physical Device Access**: Local SQLite database and vector storage are protected by container non-root boundaries. For high-theft physical risk environments, Full Disk Encryption (LUKS or BitLocker) must be enabled on the host operating system.
+- **Untrusted / Remote Networks**: If exposing edge nodes beyond the local private subnet, an upstream reverse proxy or API Gateway (e.g., Nginx, Envoy, Traefik) enforcing mutual TLS (mTLS) or OAuth2 authentication must be placed in front of the terminal.
+
 ## Project Status
 
 - [x] Phase 0: Architecture & repository setup
@@ -121,7 +145,8 @@ OpenAPI documentation is auto-generated at:
 - [x] Phase 9: Production frontend SPA
 - [x] Phase 10: Production observability & immutable audit telemetry
 - [x] Phase 11: Deliberate failure-injection, hardening & resilience validation
-- [ ] Phase 13: Security review & hardening
+- [x] Phase 12: Production containerization, orchestration & CI/CD
+- [x] Phase 13: Security review & platform hardening pass
 - [ ] Phase 14: Performance optimization & benchmark
 
 ## Qdrant Edge Notes

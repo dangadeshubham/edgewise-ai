@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.schemas.api import (
     SyncHistoryItem,
     SyncHistoryResponse,
@@ -78,7 +79,7 @@ async def get_sync_status(
     )
 
 
-@router.post("/run", response_model=SyncRunResponse)
+@router.post("/run", response_model=SyncRunResponse, dependencies=[Depends(rate_limit("sync"))])
 async def run_sync(
     batch_size: int = Query(default=20, ge=1, le=100, description="Max items to process in this run"),
     apply_cloud_to_edge: bool = Query(default=True, description="Refresh local immutable shard from cloud after upload"),

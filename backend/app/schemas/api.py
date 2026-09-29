@@ -268,10 +268,22 @@ class CopilotQueryResponse(BaseModel):
 # =============================================================================
 
 class MemoryRecordCreate(BaseModel):
-    content: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1, max_length=50000)
     record_type: str = Field("note", pattern="^(chunk|note|observation|record)$")
     sensitivity: str = Field("internal")
     metadata: Optional[dict[str, Any]] = None
+
+    @field_validator("metadata")
+    @classmethod
+    def validate_metadata_size(cls, v: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+        if v is not None:
+            import json
+            serialized = json.dumps(v)
+            if len(serialized) > 65536:
+                raise ValueError("Metadata payload exceeds maximum permitted size of 64 KB.")
+            if len(v) > 100:
+                raise ValueError("Metadata dictionary exceeds maximum permitted key count of 100.")
+        return v
 
 
 class MemoryRecordResponse(BaseModel):

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, Upl
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.models.database import Document
 from app.repositories.document import DocumentRepository
 from app.schemas.api import (
@@ -31,6 +32,7 @@ router = APIRouter()
     "",
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("upload"))],
     responses={
         200: {"model": DocumentUploadResponse, "description": "Duplicate document detected"},
         400: {"model": ErrorResponse},
@@ -147,7 +149,7 @@ async def delete_document(
     )
 
 
-@router.post("/{document_id}/reindex", response_model=SuccessResponse)
+@router.post("/{document_id}/reindex", response_model=SuccessResponse, dependencies=[Depends(rate_limit("reindex"))])
 async def reindex_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),

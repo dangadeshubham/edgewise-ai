@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.models.database import Document, DocumentChunk
 from app.schemas.api import SearchRequest, SearchResponse, SearchResultItem
 from app.services.edge_memory import (
@@ -27,7 +28,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter()
 
 
-@router.post("", response_model=SearchResponse)
+@router.post("", response_model=SearchResponse, dependencies=[Depends(rate_limit("search"))])
 async def search(
     request: SearchRequest,
     db: AsyncSession = Depends(get_db),
@@ -162,9 +163,11 @@ async def search(
             search_type="semantic",
         )
 
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.error("search_failed", query=request.query, error=str(exc))
+        logger.error("search_failed", query=request.query, error=str(exc), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Semantic search failed: {str(exc)}",
+            detail="Semantic search failed due to an internal server error.",
         )
