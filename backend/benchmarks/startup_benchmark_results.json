@@ -1,0 +1,43 @@
+{
+  "database_migration": {
+    "min_ms": 236.01,
+    "median_ms": 259.34,
+    "p95_ms": 635.12,
+    "max_ms": 725.54,
+    "runs": 5
+  },
+  "embedding_model_load": {
+    "min_ms": 8261.69,
+    "median_ms": 9344.99,
+    "p95_ms": 13517.03,
+    "max_ms": 13907.98,
+    "runs": 5,
+    "cold_load_ms": 13907.98
+  },
+  "qdrant_edge_shard_init": {
+    "min_ms": 269.57,
+    "median_ms": 270.83,
+    "p95_ms": 283.9,
+    "max_ms": 286.23,
+    "runs": 5
+  },
+  "ollama_availability_detection": {
+    "min_ms": 2039.4,
+    "median_ms": 2049.87,
+    "p95_ms": 2087.43,
+    "max_ms": 2091.5,
+    "runs": 5
+  },
+  "backend_app_init": {
+    "min_ms": 0.0,
+    "median_ms": 0.0,
+    "p95_ms": 2419.04,
+    "max_ms": 3023.8,
+    "runs": 5
+  },
+  "frontend": {
+    "production_bundle_exists": true,
+    "bundle_size_kb": 444.61,
+    "spa_entrypoint": "index.html"
+  }
+}

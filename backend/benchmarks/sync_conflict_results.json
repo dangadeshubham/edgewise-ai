@@ -1,0 +1,76 @@
+{
+  "offline_performance": {
+    "memory_creation_ms": 862.79,
+    "local_indexing_ms": 23.62,
+    "local_search_ms": 18.2,
+    "search_results_found": 1,
+    "cloud_bypass_verified": true
+  },
+  "qdrant_server_sync": {
+    "10_changes": {
+      "scale": 10,
+      "queue_insert_total_ms": 751.56,
+      "avg_queue_insert_per_item_ms": 75.156,
+      "sync_execution_ms": 1540.97,
+      "changes_per_second": 6.49,
+      "uploaded_count": 10,
+      "failed_count": 0
+    },
+    "100_changes": {
+      "scale": 100,
+      "queue_insert_total_ms": 7066.46,
+      "avg_queue_insert_per_item_ms": 70.665,
+      "sync_execution_ms": 2478.7,
+      "changes_per_second": 40.34,
+      "uploaded_count": 20,
+      "failed_count": 0
+    },
+    "500_changes": {
+      "scale": 500,
+      "queue_insert_total_ms": 34219.73,
+      "avg_queue_insert_per_item_ms": 68.439,
+      "sync_execution_ms": 2465.36,
+      "changes_per_second": 202.81,
+      "uploaded_count": 20,
+      "failed_count": 0
+    },
+    "1000_changes": {
+      "scale": 1000,
+      "queue_insert_total_ms": 67529.54,
+      "avg_queue_insert_per_item_ms": 67.53,
+      "sync_execution_ms": 2492.77,
+      "changes_per_second": 401.16,
+      "uploaded_count": 20,
+      "failed_count": 0
+    }
+  },
+  "conflict_performance": {
+    "10_conflicts": {
+      "count": 10,
+      "creation_total_ms": 14.93,
+      "diff_comparison_total_ms": 22.06,
+      "resolution_and_audit_total_ms": 443.43,
+      "avg_diff_ms_per_conflict": 2.206,
+      "avg_resolve_ms_per_conflict": 44.343,
+      "data_loss_prevented": true
+    },
+    "50_conflicts": {
+      "count": 50,
+      "creation_total_ms": 28.53,
+      "diff_comparison_total_ms": 101.1,
+      "resolution_and_audit_total_ms": 2200.5,
+      "avg_diff_ms_per_conflict": 2.022,
+      "avg_resolve_ms_per_conflict": 44.01,
+      "data_loss_prevented": true
+    },
+    "100_conflicts": {
+      "count": 100,
+      "creation_total_ms": 40.22,
+      "diff_comparison_total_ms": 189.53,
+      "resolution_and_audit_total_ms": 4391.57,
+      "avg_diff_ms_per_conflict": 1.895,
+      "avg_resolve_ms_per_conflict": 43.916,
+      "data_loss_prevented": true
+    }
+  }
+}

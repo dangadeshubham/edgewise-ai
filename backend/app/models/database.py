@@ -134,6 +134,7 @@ class Document(Base):
         Index("ix_documents_device_id", "device_id"),
         Index("ix_documents_sync_status", "sync_status"),
         Index("ix_documents_processing_status", "processing_status"),
+        Index("ix_documents_created_at", "created_at"),
     )
 
     device = relationship("Device", back_populates="documents")

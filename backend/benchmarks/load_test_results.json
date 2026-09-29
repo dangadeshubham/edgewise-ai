@@ -1,0 +1,122 @@
+{
+  "dashboard_health_concurrency": {
+    "concurrency_1": {
+      "concurrency": 1,
+      "total_requests": 50,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 50,
+      "requests_per_second": 142.57,
+      "mean_ms": 0,
+      "p95_ms": 0
+    },
+    "concurrency_10": {
+      "concurrency": 10,
+      "total_requests": 50,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 50,
+      "requests_per_second": 282.65,
+      "mean_ms": 0,
+      "p95_ms": 0
+    },
+    "concurrency_25": {
+      "concurrency": 25,
+      "total_requests": 50,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 50,
+      "requests_per_second": 239.3,
+      "mean_ms": 0,
+      "p95_ms": 0
+    },
+    "concurrency_50": {
+      "concurrency": 50,
+      "total_requests": 50,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 50,
+      "requests_per_second": 275.63,
+      "mean_ms": 0,
+      "p95_ms": 0
+    }
+  },
+  "search_concurrency": {
+    "concurrency_1": {
+      "concurrency": 1,
+      "total_requests": 30,
+      "successes": 30,
+      "rate_limits_429": 0,
+      "errors": 0,
+      "requests_per_second": 1.02,
+      "mean_ms": 980.24,
+      "median_ms": 28.53,
+      "p95_ms": 32.06,
+      "max_ms": 28566.55
+    },
+    "concurrency_5": {
+      "concurrency": 5,
+      "total_requests": 30,
+      "successes": 30,
+      "rate_limits_429": 0,
+      "errors": 0,
+      "requests_per_second": 33.57,
+      "mean_ms": 146.63,
+      "median_ms": 146.85,
+      "p95_ms": 183.63,
+      "max_ms": 191.58
+    },
+    "concurrency_10": {
+      "concurrency": 10,
+      "total_requests": 30,
+      "successes": 0,
+      "rate_limits_429": 30,
+      "errors": 0,
+      "requests_per_second": 197.74,
+      "mean_ms": 0,
+      "p95_ms": 0
+    },
+    "concurrency_20": {
+      "concurrency": 20,
+      "total_requests": 30,
+      "successes": 0,
+      "rate_limits_429": 30,
+      "errors": 0,
+      "requests_per_second": 221.56,
+      "mean_ms": 0,
+      "p95_ms": 0
+    }
+  },
+  "overview_concurrency": {
+    "concurrency_1": {
+      "concurrency": 1,
+      "total_requests": 30,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 30,
+      "requests_per_second": 273.55,
+      "mean_ms": 0,
+      "p95_ms": 0
+    },
+    "concurrency_5": {
+      "concurrency": 5,
+      "total_requests": 30,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 30,
+      "requests_per_second": 280.11,
+      "mean_ms": 0,
+      "p95_ms": 0
+    },
+    "concurrency_15": {
+      "concurrency": 15,
+      "total_requests": 30,
+      "successes": 0,
+      "rate_limits_429": 0,
+      "errors": 30,
+      "requests_per_second": 292.07,
+      "mean_ms": 0,
+      "p95_ms": 0
+    }
+  }
+}

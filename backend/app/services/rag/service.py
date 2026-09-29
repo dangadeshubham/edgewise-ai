@@ -120,10 +120,15 @@ class RAGService:
     6. Persist conversation
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        retrieval_service: Optional[RetrievalService] = None,
+        ollama_service: Optional[OllamaService] = None,
+    ) -> None:
         self.db = db
-        self.retrieval_service = RetrievalService(db)
-        self.ollama_service = get_ollama_service()
+        self.retrieval_service = retrieval_service or RetrievalService(db)
+        self.ollama_service = ollama_service or get_ollama_service()
 
     async def query(
         self,

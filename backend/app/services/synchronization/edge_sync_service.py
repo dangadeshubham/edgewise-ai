@@ -342,9 +342,12 @@ class EdgeCloudSyncService:
             return False
 
         cloud_rev = int(cloud_payload.get("revision", 1))
-        cloud_hash = cloud_payload.get("content_hash", "")
-        cloud_device = cloud_payload.get("origin_device", "remote")
-        cloud_text = cloud_payload.get("text", "")
+        cloud_device = cloud_payload.get("origin_device") or cloud_payload.get("device_id") or "remote"
+        cloud_text = cloud_payload.get("text") or cloud_payload.get("content") or ""
+        cloud_hash = cloud_payload.get("content_hash")
+        if not cloud_hash:
+            import hashlib
+            cloud_hash = hashlib.sha256(cloud_text.encode("utf-8")).hexdigest()
 
         stmt = select(MemoryRecord).where(MemoryRecord.id == record_id)
         res = await self.session.execute(stmt)

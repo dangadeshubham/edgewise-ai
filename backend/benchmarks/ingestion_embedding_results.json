@@ -1,0 +1,135 @@
+{
+  "ingestion_pipeline": {
+    "10_chunks": {
+      "target_chunks": 10,
+      "actual_chunks": 11,
+      "file_size_bytes": 3754,
+      "validation_ms": 3.7,
+      "extraction_ms": 0.03,
+      "cleaning_ms": 1.37,
+      "chunking_ms": 0.27,
+      "embedding_ms": 191.29,
+      "edge_upsert_ms": 5.82,
+      "total_ingestion_ms": 202.48,
+      "chunks_per_second": 54.33
+    },
+    "100_chunks": {
+      "target_chunks": 100,
+      "actual_chunks": 110,
+      "file_size_bytes": 37831,
+      "validation_ms": 3.27,
+      "extraction_ms": 0.03,
+      "cleaning_ms": 3.82,
+      "chunking_ms": 1.52,
+      "embedding_ms": 1714.25,
+      "edge_upsert_ms": 28.12,
+      "total_ingestion_ms": 1751.01,
+      "chunks_per_second": 62.82
+    },
+    "500_chunks": {
+      "target_chunks": 500,
+      "actual_chunks": 550,
+      "file_size_bytes": 189732,
+      "validation_ms": 3.34,
+      "extraction_ms": 0.05,
+      "cleaning_ms": 18.38,
+      "chunking_ms": 7.24,
+      "embedding_ms": 8014.26,
+      "edge_upsert_ms": 112.97,
+      "total_ingestion_ms": 8156.23,
+      "chunks_per_second": 67.43
+    },
+    "1000_chunks": {
+      "target_chunks": 1000,
+      "actual_chunks": 1100,
+      "file_size_bytes": 380591,
+      "validation_ms": 3.46,
+      "extraction_ms": 0.21,
+      "cleaning_ms": 35.58,
+      "chunking_ms": 16.98,
+      "embedding_ms": 15852.54,
+      "edge_upsert_ms": 238.41,
+      "total_ingestion_ms": 16147.19,
+      "chunks_per_second": 68.12
+    }
+  },
+  "embedding_benchmarks": {
+    "scales": {
+      "1_chunks": {
+        "chunk_count": 1,
+        "batch_size": 32,
+        "duration_ms": 27.07,
+        "chunks_per_sec": 36.94,
+        "avg_ms_per_chunk": 27.07
+      },
+      "10_chunks": {
+        "chunk_count": 10,
+        "batch_size": 32,
+        "duration_ms": 168.25,
+        "chunks_per_sec": 59.44,
+        "avg_ms_per_chunk": 16.82
+      },
+      "100_chunks": {
+        "chunk_count": 100,
+        "batch_size": 32,
+        "duration_ms": 1506.95,
+        "chunks_per_sec": 66.36,
+        "avg_ms_per_chunk": 15.07
+      },
+      "500_chunks": {
+        "chunk_count": 500,
+        "batch_size": 32,
+        "duration_ms": 7670.79,
+        "chunks_per_sec": 65.18,
+        "avg_ms_per_chunk": 15.34
+      },
+      "1000_chunks": {
+        "chunk_count": 1000,
+        "batch_size": 32,
+        "duration_ms": 14307.8,
+        "chunks_per_sec": 69.89,
+        "avg_ms_per_chunk": 14.31
+      }
+    },
+    "batch_size_comparison": {
+      "batch_8": {
+        "batch_size": 8,
+        "chunks_tested": 500,
+        "duration_ms": 7480.14,
+        "chunks_per_sec": 66.84,
+        "rss_before_mb": 648.81,
+        "rss_after_mb": 600.5,
+        "rss_delta_mb": -48.31
+      },
+      "batch_16": {
+        "batch_size": 16,
+        "chunks_tested": 500,
+        "duration_ms": 7933.26,
+        "chunks_per_sec": 63.03,
+        "rss_before_mb": 599.5,
+        "rss_after_mb": 608.27,
+        "rss_delta_mb": 8.77
+      },
+      "batch_32": {
+        "batch_size": 32,
+        "chunks_tested": 500,
+        "duration_ms": 7417.99,
+        "chunks_per_sec": 67.4,
+        "rss_before_mb": 608.27,
+        "rss_after_mb": 607.58,
+        "rss_delta_mb": -0.69
+      },
+      "batch_64": {
+        "batch_size": 64,
+        "chunks_tested": 500,
+        "duration_ms": 7414.53,
+        "chunks_per_sec": 67.44,
+        "rss_before_mb": 607.58,
+        "rss_after_mb": 681.23,
+        "rss_delta_mb": 73.65
+      }
+    },
+    "optimal_batch_size": 64,
+    "optimal_throughput_chunks_sec": 67.44
+  }
+}

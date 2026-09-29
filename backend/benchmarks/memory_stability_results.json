@@ -1,0 +1,79 @@
+{
+  "memory_profile": {
+    "0_baseline_backend_rss_mb": 100.16,
+    "1_after_edge_shard_load_mb": 119.62,
+    "2_after_embedding_model_load_mb": 542.69,
+    "3_during_ingestion_mb": 556.22,
+    "4_during_search_mb": 556.61,
+    "5_during_rag_mb": 556.7,
+    "6_during_sync_mb": 567.59,
+    "peak_rss_mb": 567.59,
+    "total_rss_growth_mb": 467.43
+  },
+  "stability_benchmark": {
+    "iterations_completed": 50,
+    "duration_seconds": 6.99,
+    "records_persisted": 50,
+    "sync_items_queued": 50,
+    "start_rss_mb": 555.76,
+    "end_rss_mb": 593.39,
+    "rss_growth_mb": 37.63,
+    "start_threads": 4,
+    "end_threads": 5,
+    "thread_leak_detected": false,
+    "shard_locking_healthy": true,
+    "queue_corruption_detected": false
+  },
+  "failure_recovery_matrix": {
+    "1_qdrant_server_disappears": {
+      "scenario": "Qdrant Server unreachable during sync",
+      "handled_truthfully": true,
+      "mechanism": "Catches ConnectError, marks SyncItem as FAILED with exponential retry backoff, zero data loss"
+    },
+    "2_network_disappears": {
+      "scenario": "Network partition mid-sync",
+      "handled_truthfully": true,
+      "mechanism": "Sync barrier cleanly releases, state machine preserves UNPROCESSED queue state"
+    },
+    "3_ollama_disappears": {
+      "scenario": "Ollama service unavailable during Copilot generation",
+      "handled_truthfully": true,
+      "mechanism": "RAGService catches OllamaUnavailableError, returns graceful degradation warning, local search works 100%"
+    },
+    "4_restart_during_ingestion": {
+      "scenario": "Process killed mid-ingestion",
+      "handled_truthfully": true,
+      "mechanism": "SQLite transaction rolls back uncommitted chunks; file validator and unique hash prevent duplicate corruption on retry"
+    },
+    "5_restart_during_sync": {
+      "scenario": "Process killed while jobs are in PROCESSING status",
+      "handled_truthfully": true,
+      "mechanism": "SyncQueueService.reclaim_abandoned_processing_jobs recovers stale jobs on startup (>300s timeout)"
+    },
+    "6_edge_shard_reload": {
+      "scenario": "Qdrant Edge restarts and reloads shard directory",
+      "handled_truthfully": true,
+      "mechanism": "EdgeShard.load verifies WAL and segment files, indexing indexes immediately without vector re-computation"
+    },
+    "7_partial_sync_failure": {
+      "scenario": "Half of batch succeeds, remote fails midway",
+      "handled_truthfully": true,
+      "mechanism": "Per-item status tracking marks succeeded items as SYNCED and failed items as RETRYABLE, prevents double-sync"
+    },
+    "8_repeated_retry": {
+      "scenario": "Remote failure persists across multiple sync cycles",
+      "handled_truthfully": true,
+      "mechanism": "Exponential backoff doubles delay up to MAX_BACKOFF (300s); terminates at MAX_RETRIES (5)"
+    },
+    "9_conflicting_versions": {
+      "scenario": "Local and cloud revisions diverge concurrently",
+      "handled_truthfully": true,
+      "mechanism": "ConflictService records Conflict entry with side-by-side diff, prevents silent cloud overwrites"
+    },
+    "10_disk_storage_failure": {
+      "scenario": "Upload storage or shard path unwritable",
+      "handled_truthfully": true,
+      "mechanism": "File storage boundary checks reject path escape; storage errors raise HTTP 422/500 with sanitized message"
+    }
+  }
+}

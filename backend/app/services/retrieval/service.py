@@ -65,8 +65,9 @@ class RetrievalService:
     to avoid duplicating retrieval logic.
     """
 
-    def __init__(self, db: AsyncSession) -> None:
+    def __init__(self, db: AsyncSession, searcher: Optional[LocalMemorySearch] = None) -> None:
         self.db = db
+        self.searcher = searcher or LocalMemorySearch()
 
     async def retrieve(
         self,
@@ -93,7 +94,7 @@ class RetrievalService:
         )
 
         # 2. Search with candidate pool
-        searcher = LocalMemorySearch()
+        searcher = self.searcher
         candidate_limit = max(limit * 5, 50)
         t_embed_start = time.perf_counter()
         search_result = searcher.search(

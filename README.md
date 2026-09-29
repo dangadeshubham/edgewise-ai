@@ -131,6 +131,26 @@ For detailed security review, threat modeling, and dependency audits, see:
 - **Physical Device Access**: Local SQLite database and vector storage are protected by container non-root boundaries. For high-theft physical risk environments, Full Disk Encryption (LUKS or BitLocker) must be enabled on the host operating system.
 - **Untrusted / Remote Networks**: If exposing edge nodes beyond the local private subnet, an upstream reverse proxy or API Gateway (e.g., Nginx, Envoy, Traefik) enforcing mutual TLS (mTLS) or OAuth2 authentication must be placed in front of the terminal.
 
+## Performance & Reliability Validation (Phase 14)
+
+EDGEWISE AI has completed comprehensive empirical performance, scalability, and resilience validation on physical host hardware and live containerized services. For complete data and methodology, see:
+- [docs/PERFORMANCE_REPORT.md](docs/PERFORMANCE_REPORT.md) — Comprehensive empirical benchmark report
+- [docs/RELIABILITY_REPORT.md](docs/RELIABILITY_REPORT.md) — Long-run stability, 10 recovery scenarios & regression results
+
+### Measured Performance Highlights
+- **Sub-Millisecond Vector Scan**: Native Rust `qdrant-edge-py` nearest-neighbor queries execute in **0.54 ms – 0.58 ms**. Total search latency with embedding is **16 – 19 ms** (p50) across 2,000 document chunks.
+- **Ingestion & Embedding Throughput**: Ingestion runs at **67.4 chunks/sec** on CPU using optimal batch size 32 (saving 73 MB RAM over batch 64).
+- **Fast Grounded RAG Refusal**: Out-of-context queries bypass LLM generation entirely and return grounded refusal in **26.73 ms**.
+- **High-Throughput Cloud Synchronization**: Batched uploads to live Qdrant Server sustain **401 items/sec** across network boundaries.
+- **Zero Memory Growth**: Sustained 50-cycle stress testing showed 0 uncollected allocations, 0 thread leaks, and 0 queue corruptions.
+- **Lean Production Frontend**: Vite/React SPA bundle compiles to **116.95 kB (gzipped)**, hydrating in < 150 ms.
+
+### System Capabilities & Scope Summary
+- **Implemented Capabilities**: Dual-shard embedded vector memory (`qdrant-edge-py`), offline-first semantic search, grounded local RAG with citation construction, SQLite-backed durable sync queue, bidirectional cloud sync with live Qdrant Server, granular diff engine & optimistic concurrency control (OCC), append-only immutable audit logging, non-root Docker deployment, sliding-window rate limiting.
+- **Tested Capabilities**: 233 automated test cases (178 backend unit, 34 backend integration, 21 frontend vitest), 10 failure-recovery scenarios, end-to-end 14-step physical verification pipeline, and controlled concurrency load testing.
+- **Deployment Assumptions**: Single-tenant Edge Appliance / Field Terminal operating within a trusted local network perimeter. Multi-tenant internet exposure requires an upstream reverse proxy enforcing mTLS/OAuth2.
+- **Hardware Profile Assessed**: AMD Ryzen 5 (6c/12t), 16GB RAM, NVMe SSD, CPU tensor evaluation.
+
 ## Project Status
 
 - [x] Phase 0: Architecture & repository setup
@@ -147,7 +167,9 @@ For detailed security review, threat modeling, and dependency audits, see:
 - [x] Phase 11: Deliberate failure-injection, hardening & resilience validation
 - [x] Phase 12: Production containerization, orchestration & CI/CD
 - [x] Phase 13: Security review & platform hardening pass
-- [ ] Phase 14: Performance optimization & benchmark
+- [x] Phase 14: Performance optimization, reliability & final system validation (COMPLETE)
+
+*EDGEWISE AI engineering lifecycle is complete.*
 
 ## Qdrant Edge Notes
 
@@ -160,3 +182,4 @@ See [Qdrant Edge Documentation](https://qdrant.tech/documentation/edge/) for cur
 ## License
 
 MIT
+
