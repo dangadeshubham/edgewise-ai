@@ -194,7 +194,7 @@ def test_7_oversized_pagination():
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
-        PaginationParams(page=1, page_size=201)
+        PaginationParams.model_validate({"page": 1, "page_size": 201})
 
     # Valid pagination parameters
     p = PaginationParams(page=1, page_size=100)

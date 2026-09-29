@@ -50,12 +50,14 @@ def test_qdrant_edge_lifecycle_proof():
         assert len(results) == 1
         assert results[0].id == point_id
         assert results[0].score >= 0.99
+        assert results[0].payload is not None
         assert results[0].payload["filename"] == "centrifugal_pump_manual.txt"
 
         # 4. RETRIEVE
         retrieved = shard.retrieve([point_id], with_payload=True, with_vector=True)
         assert len(retrieved) == 1
         assert retrieved[0].id == point_id
+        assert retrieved[0].payload is not None
         assert retrieved[0].payload["document_id"] == "doc-uuid-1"
 
         # 5. INFO
@@ -77,6 +79,7 @@ def test_qdrant_edge_lifecycle_proof():
         assert len(reloaded_results) == 1
         assert reloaded_results[0].id == point_id
         assert reloaded_results[0].score >= 0.99
+        assert reloaded_results[0].payload is not None
         assert reloaded_results[0].payload["text"] == "Check pump bearing temperature every 24 hours."
 
         reloaded_info = reloaded_shard.info()
