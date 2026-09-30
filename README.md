@@ -1,3 +1,7 @@
+# EDGEWISE AI
+
+**Autonomous Edge Memory & Offline Intelligence Platform for Industrial Operations**
+
 <img width="959" height="443" alt="Screenshot 2026-09-30 111539" src="https://github.com/user-attachments/assets/6644a9b7-98b0-404e-8a71-8b110d0ec5ac" />
 <img width="959" height="448" alt="Screenshot 2026-09-30 111708" src="https://github.com/user-attachments/assets/08f00fdc-1d77-4068-84cd-3bc46df275f3" />
 <img width="959" height="444" alt="Screenshot 2026-09-30 111725" src="https://github.com/user-attachments/assets/6689591a-033e-43f7-985b-c440fca8751e" />
