@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/common/StatusBadge'
 import { LoadingState } from '../components/common/LoadingState'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorState } from '../components/common/ErrorState'
+import { formatTime } from '../utils/date'
 
 export const DevicesPage: React.FC = () => {
   const { data, isLoading, error, refetch } = useQuery({
@@ -104,7 +105,7 @@ export const DevicesPage: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-slate-500">Last Seen:</span>
                     <span className="text-slate-300">
-                      {device.last_heartbeat_at ? new Date(device.last_heartbeat_at).toLocaleTimeString() : 'Online'}
+                      {formatTime(device.last_heartbeat_at, 'Online')}
                     </span>
                   </div>
                 </div>

@@ -111,6 +111,10 @@ class ConnectivityResponse(BaseModel):
     sqlite: str  # available, unavailable, unknown
     dependencies: Optional[dict[str, DependencyDetail]] = None
     last_check: Optional[str] = None
+    timestamp: Optional[str] = None
+    device_id: Optional[str] = None
+    device_name: Optional[str] = None
+    device_site: Optional[str] = None
     recent_events: Optional[list[ConnectivityEventResponse]] = None
     # Backwards compat (deprecated)
     internet_available: Optional[bool] = None

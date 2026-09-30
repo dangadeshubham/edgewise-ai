@@ -28,8 +28,9 @@ async def test_dashboard_metrics_calculated_from_real_state(
     assert data["total_documents"] >= 3
     # No fake completed documents
     assert data["processed_documents"] == 0
-    # No fake vectors
-    assert data["local_vector_count"] == 0
+    # No fake vectors in seeded chunks
+    assert data["embedded_chunks"] == 0
+    assert data["local_vector_count"] == data["edge_mutable_points"] + data["edge_immutable_points"]
     # No fake conflicts
     assert data["open_conflicts"] == 0
     # Seeded memory records

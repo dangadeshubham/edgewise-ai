@@ -18,6 +18,10 @@ from app.services.edge_memory.unified_search import (
     LocalMemorySearch,
     UnifiedSearchResult,
 )
+from app.services.edge_memory.cleanup import (
+    VectorCleanupService,
+    CleanupReport,
+)
 
 __all__ = [
     "EdgeMemoryService",
@@ -32,4 +36,6 @@ __all__ = [
     "build_payload_filter",
     "LocalMemorySearch",
     "UnifiedSearchResult",
+    "VectorCleanupService",
+    "CleanupReport",
 ]

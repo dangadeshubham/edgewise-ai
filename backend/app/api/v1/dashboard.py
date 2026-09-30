@@ -82,10 +82,12 @@ async def get_dashboard_metrics(
     open_conflicts = await conflict_repo.count_open()
 
     conn_state = conn_status.get("state") if isinstance(conn_status, dict) else getattr(conn_status, "state", "unknown")
+    total_searchable_vector_points = mutable_points + immutable_points
+
     return DashboardMetrics(
         connectivity_state=conn_state,
         local_memory_records=memory_count,
-        local_vector_count=embedded_chunks,
+        local_vector_count=total_searchable_vector_points,
         cloud_record_count=cloud_records,
         pending_sync=pending_sync,
         failed_sync=failed_sync,
@@ -106,3 +108,16 @@ async def get_dashboard_metrics(
         edge_shard_available=edge_available,
         edge_last_flush=last_flush,
     )
+
+
+@router.post("/cleanup-orphans")
+async def cleanup_orphaned_vectors(
+    dry_run: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    """Safely audit and reconcile vector points against authoritative SQLite records."""
+    from app.services.edge_memory.cleanup import VectorCleanupService
+
+    service = VectorCleanupService(db)
+    report = await service.reconcile_and_cleanup(dry_run=dry_run, shard_type="mutable")
+    return report.to_dict()

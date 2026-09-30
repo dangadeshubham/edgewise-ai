@@ -16,6 +16,7 @@ import { EmptyState } from '../components/common/EmptyState'
 import { ErrorState } from '../components/common/ErrorState'
 import { Pagination } from '../components/common/Pagination'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { formatDate, formatDateTime } from '../utils/date'
 
 export const DocumentsPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -226,7 +227,7 @@ export const DocumentsPage: React.FC = () => {
                           {formatSize(doc.file_size_bytes)}
                         </td>
                         <td className="py-3 px-4 text-slate-400">
-                          {new Date(doc.created_at).toLocaleDateString()}
+                          {formatDate(doc.created_at)}
                         </td>
                         <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                           <button

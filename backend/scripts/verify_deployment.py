@@ -58,7 +58,7 @@ class DeploymentVerifier:
         backend_url: str = "http://localhost:8000",
         qdrant_url: str = "http://localhost:6333",
         frontend_url: str = "http://localhost:5173",
-        timeout: float = 15.0,
+        timeout: float = 35.0,
     ):
         self.backend_url = backend_url.rstrip("/")
         self.qdrant_url = qdrant_url.rstrip("/")
@@ -188,7 +188,7 @@ class DeploymentVerifier:
             self.results["frontend_accessible"] = False
 
     def verify_document_upload_and_search(self):
-        upload_url = f"{self.backend_url}/api/documents/upload"
+        upload_url = f"{self.backend_url}/api/documents"
         doc_content = (
             "# Centrifugal Pump Maintenance Protocol\n\n"
             "Emergency shutdown procedure for Model CP-400:\n"

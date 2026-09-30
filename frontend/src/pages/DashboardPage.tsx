@@ -17,6 +17,7 @@ import { MetricCard } from '../components/common/MetricCard'
 import { StatusBadge } from '../components/common/StatusBadge'
 import { LoadingState } from '../components/common/LoadingState'
 import { ErrorState } from '../components/common/ErrorState'
+import { formatTime, formatDateTime } from '../utils/date'
 
 export const DashboardPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -172,7 +173,7 @@ export const DashboardPage: React.FC = () => {
             <div className="flex justify-between py-1">
               <span className="text-slate-400">Last Disk Flush:</span>
               <span className="text-slate-300">
-                {metrics?.edge_last_flush ? new Date(metrics.edge_last_flush).toLocaleTimeString() : 'Never'}
+                {metrics?.edge_last_flush ? formatTime(metrics.edge_last_flush, 'Not tracked') : 'Not tracked'}
               </span>
             </div>
           </div>
@@ -239,7 +240,7 @@ export const DashboardPage: React.FC = () => {
             <div className="flex justify-between py-1 border-b border-white/5">
               <span className="text-slate-400">Last Successful Sync:</span>
               <span className="text-slate-300">
-                {metrics?.last_successful_sync ? new Date(metrics.last_successful_sync).toLocaleString() : 'Pending initial sync'}
+                {formatDateTime(metrics?.last_successful_sync, 'Pending initial sync')}
               </span>
             </div>
             <div className="flex justify-between py-1">

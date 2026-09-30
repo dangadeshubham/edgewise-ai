@@ -15,6 +15,7 @@ import { StatusBadge } from '../components/common/StatusBadge'
 import { LoadingState } from '../components/common/LoadingState'
 import { EmptyState } from '../components/common/EmptyState'
 import { Pagination } from '../components/common/Pagination'
+import { formatTime, formatDate, formatDateTime } from '../utils/date'
 
 export const SyncPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -153,13 +154,11 @@ export const SyncPage: React.FC = () => {
               Last Cloud Sync
             </span>
             <div className="text-xs font-mono font-semibold text-slate-200 mt-1">
-              {status?.last_cloud_sync_time
-                ? new Date(status.last_cloud_sync_time).toLocaleTimeString()
-                : 'Pending initial'}
+              {formatTime(status?.last_cloud_sync_time, 'Pending initial')}
             </div>
             <span className="text-[10px] text-slate-500 font-mono">
               {status?.last_cloud_sync_time
-                ? new Date(status.last_cloud_sync_time).toLocaleDateString()
+                ? formatDate(status.last_cloud_sync_time)
                 : 'Offline queue active'}
             </span>
           </div>
@@ -226,7 +225,7 @@ export const SyncPage: React.FC = () => {
                       {item.retry_count} / {item.max_retries}
                     </td>
                     <td className="py-3 px-4 text-slate-400">
-                      {new Date(item.created_at).toLocaleTimeString()}
+                      {formatTime(item.created_at)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
@@ -298,7 +297,7 @@ export const SyncPage: React.FC = () => {
                       {att.duration_ms !== null && att.duration_ms !== undefined ? `${att.duration_ms.toFixed(1)} ms` : '--'}
                     </td>
                     <td className="py-2.5 px-4 text-slate-400">
-                      {new Date(att.attempted_at).toLocaleTimeString()}
+                      {formatTime(att.attempted_at)}
                     </td>
                     <td className="py-2.5 px-4 text-rose-300 truncate max-w-[150px]">
                       {att.error_category || 'none'}
@@ -364,12 +363,12 @@ export const SyncPage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Queued Timestamp:</span>
-                <span className="text-slate-400">{new Date(selectedQueueItem.created_at).toLocaleString()}</span>
+                <span className="text-slate-400">{formatDateTime(selectedQueueItem.created_at)}</span>
               </div>
               {selectedQueueItem.scheduled_at && (
                 <div className="flex justify-between">
                   <span className="text-slate-500">Next Backoff Execution:</span>
-                  <span className="text-amber-400">{new Date(selectedQueueItem.scheduled_at).toLocaleTimeString()}</span>
+                  <span className="text-amber-400">{formatTime(selectedQueueItem.scheduled_at)}</span>
                 </div>
               )}
               {selectedQueueItem.last_error_message && (

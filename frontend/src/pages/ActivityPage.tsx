@@ -8,6 +8,7 @@ import { LoadingState } from '../components/common/LoadingState'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorState } from '../components/common/ErrorState'
 import { Pagination } from '../components/common/Pagination'
+import { formatTime, formatDate } from '../utils/date'
 
 export const ActivityPage: React.FC = () => {
   const [page, setPage] = useState(1)
@@ -107,8 +108,8 @@ export const ActivityPage: React.FC = () => {
                     )}
                   </div>
                   <div className="text-right shrink-0 text-slate-400 text-[11px]">
-                    <div>{new Date(ev.created_at).toLocaleTimeString()}</div>
-                    <div className="text-[10px] text-slate-500">{new Date(ev.created_at).toLocaleDateString()}</div>
+                    <div>{formatTime(ev.created_at)}</div>
+                    <div className="text-[10px] text-slate-500">{formatDate(ev.created_at)}</div>
                   </div>
                 </div>
               ))}

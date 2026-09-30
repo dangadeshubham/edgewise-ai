@@ -572,9 +572,14 @@ class ConnectivityManager:
 
     def get_status(self) -> dict[str, Any]:
         """Get full connectivity status for API responses."""
+        now_iso = (self._last_full_check or datetime.now(timezone.utc)).isoformat()
         return {
             "state": self._state.value,
             "application_mode": self.application_mode,
+            "device_id": settings.device_id,
+            "device_name": settings.device_name,
+            "device_site": settings.device_site,
+            "timestamp": now_iso,
             "internet": self._dependencies[DependencyName.INTERNET].status.value,
             "qdrant_edge": self._dependencies[DependencyName.QDRANT_EDGE].status.value,
             "ollama": self._dependencies[DependencyName.OLLAMA].status.value,

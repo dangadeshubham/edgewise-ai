@@ -9,6 +9,7 @@ import { EmptyState } from '../components/common/EmptyState'
 import { ErrorState } from '../components/common/ErrorState'
 import { Pagination } from '../components/common/Pagination'
 import { SearchBar } from '../components/common/SearchBar'
+import { formatDateTime } from '../utils/date'
 
 export const MemoryPage: React.FC = () => {
   const [page, setPage] = useState(1)
@@ -224,11 +225,11 @@ export const MemoryPage: React.FC = () => {
               </div>
               <div>
                 <span className="text-slate-500 block">Created Timestamp:</span>
-                <span className="text-slate-300">{new Date(selectedRecord.created_at).toLocaleString()}</span>
+                <span className="text-slate-300">{formatDateTime(selectedRecord.created_at)}</span>
               </div>
               <div>
                 <span className="text-slate-500 block">Last Updated:</span>
-                <span className="text-slate-300">{new Date(selectedRecord.updated_at).toLocaleString()}</span>
+                <span className="text-slate-300">{formatDateTime(selectedRecord.updated_at)}</span>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React from 'react'
 import { X, CheckCircle2, AlertTriangle, XCircle, HelpCircle } from 'lucide-react'
 import type { ConnectivityStatusResponse } from '../../types'
+import { formatTime } from '../../utils/date'
 
 interface SystemStatusModalProps {
   isOpen: boolean
@@ -113,7 +114,7 @@ export const SystemStatusModal: React.FC<SystemStatusModalProps> = ({
 
         <div className="mt-6 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-500 font-mono">
           <span>Device ID: {connectivity?.device_id || 'unknown'}</span>
-          <span>{connectivity ? new Date(connectivity.timestamp).toLocaleTimeString() : '--'}</span>
+          <span>{formatTime(connectivity?.timestamp)}</span>
         </div>
       </div>
     </div>

@@ -156,4 +156,29 @@ describe('Unit Components Suite', () => {
       expect(onPageChange).toHaveBeenCalledWith(1)
     })
   })
+
+  describe('Safe Date Formatting (Task H)', () => {
+    it('never renders "Invalid Date" for null, undefined, or malformed inputs', async () => {
+      const { formatTime, formatDate, formatDateTime } = await import('../utils/date')
+
+      expect(formatTime(null)).toBe('--')
+      expect(formatTime(undefined)).toBe('--')
+      expect(formatTime('not-a-date')).toBe('--')
+      expect(formatTime('')).toBe('--')
+
+      expect(formatDate(null)).toBe('--')
+      expect(formatDate(undefined)).toBe('--')
+      expect(formatDate('garbage-date')).toBe('--')
+
+      expect(formatDateTime(null)).toBe('--')
+      expect(formatDateTime(undefined)).toBe('--')
+      expect(formatDateTime('invalid-iso-string')).toBe('--')
+
+      // Valid ISO date formatting
+      const iso = '2026-09-30T10:00:00Z'
+      expect(formatTime(iso)).not.toBe('Invalid Date')
+      expect(formatDate(iso)).not.toBe('Invalid Date')
+      expect(formatDateTime(iso)).not.toBe('Invalid Date')
+    })
+  })
 })

@@ -21,6 +21,7 @@ import { LoadingState } from '../components/common/LoadingState'
 import { EmptyState } from '../components/common/EmptyState'
 import { ErrorState } from '../components/common/ErrorState'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { formatTime } from '../utils/date'
 
 export const ConflictsPage: React.FC = () => {
   const queryClient = useQueryClient()
@@ -264,7 +265,7 @@ export const ConflictsPage: React.FC = () => {
                       <span>Cloud: rev {c.cloud_revision}</span>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1">
-                      {new Date(c.created_at || (c as any).detected_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(c.created_at || (c as any).detected_at)}
                     </div>
                   </div>
                 ))}
@@ -566,7 +567,7 @@ export const ConflictsPage: React.FC = () => {
                           className="flex items-center justify-between p-2 rounded bg-black/30 border border-white/5 text-[11px]"
                         >
                           <span className="text-slate-300">{ev.event_type}</span>
-                          <span className="text-slate-500">{new Date(ev.created_at).toLocaleTimeString()}</span>
+                          <span className="text-slate-500">{formatTime(ev.created_at)}</span>
                         </div>
                       ))}
                     </div>

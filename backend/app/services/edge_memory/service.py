@@ -336,6 +336,27 @@ class EdgeMemoryService:
             shard = self._get_shard(shard_type)
             return shard.retrieve(list(point_ids), with_payload=with_payload, with_vector=with_vector)
 
+    def scroll_points(
+        self,
+        shard_type: str = "mutable",
+        limit: int = 100,
+        offset: Optional[str | int] = None,
+        filter_obj: Optional[qdrant_edge.Filter] = None,
+        with_payload: bool = True,
+        with_vector: bool = False,
+    ) -> tuple[list[qdrant_edge.Record], Optional[str | int]]:
+        """Scroll points in specified shard."""
+        with self._lock:
+            shard = self._get_shard(shard_type)
+            req = qdrant_edge.ScrollRequest(
+                limit=limit,
+                offset=offset,
+                filter=filter_obj,
+                with_payload=with_payload,
+                with_vector=with_vector,
+            )
+            return shard.scroll(req)
+
     def count_points(self, shard_type: str = "mutable") -> int:
         """Return total point count in specified shard."""
         with self._lock:
